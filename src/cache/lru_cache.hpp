@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <utility>
 
-#include "core/error.hpp"
+#include "utils/error.hpp"
 
 // template <typename K, typename V>
 class LRUCache {
@@ -22,14 +22,18 @@ class LRUCache {
 
   std::expected<std::string, CacheError> get(const std::string& key) {
     if (auto it = address.find(key); it != address.end()) {
-      cache.splice(cache.begin(), cache, address.at(key));
+      cache.splice(cache.begin(), cache, it->second);
       return cache.front().second;
     }
     return std::unexpected(CacheError::CacheMiss);
   }
 
   void set(const std::string& key, const std::string& value) {
-    if (auto it = address.find(key); it != address.end()) cache.erase(it->second);
+    if (auto it = address.find(key); it != address.end()) {
+      cache.erase(it->second);
+      address.erase(it);
+    }
+
     cache.emplace_front(key, value);
     address.emplace(key, cache.begin());
 

@@ -1,0 +1,81 @@
+#pragma once
+
+#include <cstddef>
+#include <functional>
+#include <memory>
+#include <optional>
+#include <sstream>
+#include <string>
+#include <unordered_map>
+#include <utility>
+
+#include "events.hpp"
+#include "eviction_policy.hpp"
+
+namespace cacherouter {
+
+template <typename K, typename V>
+class Cache {
+public:
+    Cache(size_t capacity, std::unique_ptr<EvictionPolicy> policy)
+        : capacity_{capacity}
+        , policy_{std::move(policy)} {};
+
+    void set_event_sink(std::function<void(CacheEvent)> sink) { on_event_ = std::move(sink); };
+
+    std::optional<V> get(const K& key) {
+        std::string skey = to_string(key);
+
+        if (auto it = data_.find(skey); it != data_.end()) {
+            policy_->on_access(skey);
+            emit(CacheEventType::Hit, skey);
+            return it->second;
+        }
+
+        emit(CacheEventType::Miss, skey);
+        return std::nullopt;
+    };
+
+    void put(const K& key, V value) {
+        std::string skey = to_string(key);
+
+        if (auto it = data_.find(skey); it == data_.end()) {
+            policy_->on_insert(skey);
+            emit(CacheEventType::Insert, skey);
+        } else {
+            policy_->on_access(skey);
+            emit(CacheEventType::Update, skey);
+        }
+
+        data_[skey] = std::move(value);
+
+        if (data_.size() > capacity_) {
+            if (auto victim = policy_->victim()) {
+                data_.erase(*victim);
+                policy_->on_remove(*victim);
+                emit(CacheEventType::Evict, *victim);
+            }
+        }
+    };
+
+    [[nodiscard]] size_t size() const { return data_.size(); };
+    [[nodiscard]] std::string policy() const { return policy_->name(); };
+
+private:
+    static std::string to_string(const K& key) {
+        std::stringstream oss;
+        oss << key;
+        return oss.str();
+    }
+
+    void emit(CacheEventType type, const std::string& key) {
+        if (on_event_) on_event_({.type = type, .key = key, .emitter = ""});
+    };
+
+    size_t capacity_;
+    std::unique_ptr<EvictionPolicy> policy_;
+    std::unordered_map<std::string, V> data_;
+    std::function<void(CacheEvent)> on_event_;
+};
+
+}  // namespace cacherouter
