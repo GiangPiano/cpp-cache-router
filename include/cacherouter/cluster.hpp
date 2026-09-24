@@ -6,6 +6,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "cacherouter/cache.hpp"
 #include "cacherouter/events.hpp"
@@ -17,6 +18,7 @@ class CacheCluster {
 public:
     explicit CacheCluster(std::unique_ptr<router::Router> router);
 
+    [[nodiscard]] std::vector<router::NodeId> list_nodes() const;
     void add_node(const router::NodeId& id, size_t capacity, const std::string& policy_name);
     void remove_node(const router::NodeId& id);
 

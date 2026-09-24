@@ -14,8 +14,6 @@ FetchContent_MakeAvailable(httplib nlohmann_json)
 
 add_executable(cacherouter_server
   main.cpp
-  http_api.cpp
-  ws_broadcaster.cpp
 )
 
 target_link_libraries(cacherouter_server PRIVATE

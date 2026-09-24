@@ -23,7 +23,7 @@ target_include_directories(murmur3 PUBLIC external/murmur3)
 
 ## CORE LIBRARY + SERVER
 add_subdirectory(src/cacherouter)
-# add_subdirectory(src/server)
+add_subdirectory(src/server)
 
 add_executable(cacherouter_demo src/main.cpp)
 target_link_libraries(cacherouter_demo PRIVATE cacherouter::core)
