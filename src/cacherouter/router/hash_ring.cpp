@@ -1,4 +1,4 @@
-#include "cacherouter/routers/hash_ring.hpp"
+#include "cacherouter/router/hash_ring.hpp"
 
 #include <cstdint>
 #include <map>
@@ -7,9 +7,9 @@
 #include <string>
 #include <vector>
 
-#include "utils/hash.hpp"
+#include "../utils/hash.hpp"
 
-namespace cacherouter {
+namespace cacherouter::router {
 
 HashRing::HashRing(int virtual_nodes) : vnodes_(virtual_nodes) {}
 
@@ -45,4 +45,4 @@ void HashRing::remove_node(const std::string& node) {
 
 uint64_t HashRing::hash(const std::string& key) { return hash_key(key); }
 
-}  // namespace cacherouter
+}  // namespace cacherouter::router

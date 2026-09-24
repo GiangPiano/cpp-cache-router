@@ -1,13 +1,13 @@
-#include "cacherouter/routers/consistent_router.hpp"
+#include "cacherouter/router/consistent_router.hpp"
 
 #include <stdexcept>
 #include <string>
 #include <vector>
 
-#include "cacherouter/routers/hash_ring.hpp"
-#include "cacherouter/routers/router.hpp"
+#include "cacherouter/router/hash_ring.hpp"
+#include "cacherouter/router/router.hpp"
 
-namespace cacherouter {
+namespace cacherouter::router {
 
 ConsistentRouter::ConsistentRouter(int virtual_nodes) : ring_{virtual_nodes} {}
 
@@ -23,4 +23,4 @@ void ConsistentRouter::remove_node(const NodeId& node) { ring_.remove_node(node)
 [[nodiscard]] std::vector<NodeId> ConsistentRouter::nodes() const { return ring_.nodes(); }
 [[nodiscard]] const HashRing& ConsistentRouter::ring() const { return ring_; }
 
-}  // namespace cacherouter
+}  // namespace cacherouter::router

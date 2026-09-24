@@ -1,13 +1,13 @@
-#include "cacherouter/routers/simple_router.hpp"
+#include "cacherouter/router/simple_router.hpp"
 
 #include <algorithm>
 #include <string>
 #include <vector>
 
 #include "../utils/hash.hpp"
-#include "cacherouter/routers/router.hpp"
+#include "cacherouter/router/router.hpp"
 
-namespace cacherouter {
+namespace cacherouter::router {
 
 void SimpleRouter::add_node(const NodeId& node) {
     if (auto it = std::ranges::find(nodes_, node); it == nodes_.end()) {
@@ -30,4 +30,4 @@ void SimpleRouter::remove_node(const NodeId& node) {
 
 [[nodiscard]] std::string SimpleRouter::name() const { return "simple"; }
 
-}  // namespace cacherouter
+}  // namespace cacherouter::router

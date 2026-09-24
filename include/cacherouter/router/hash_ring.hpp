@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-namespace cacherouter {
+namespace cacherouter::router {
 
 class HashRing {
 public:
@@ -26,4 +26,4 @@ private:
     std::map<uint64_t, std::string> ring_;
 };
 
-}  // namespace cacherouter
+}  // namespace cacherouter::router

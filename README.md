@@ -5,7 +5,8 @@
 - [ ] Make it generic
 - [ ] Write tests
 - [ ] Make web UI for user interaction
-- [ ] Refactor into event driven approach for web view integration
+- [x] Refactor into event driven approach for web view integration
+- [ ] Logger
 
 ## Dependency
 

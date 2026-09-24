@@ -17,15 +17,18 @@ option(CACHEROUTER_BUILD_TESTS "Build tests" ${PROJECT_IS_TOP_LEVEL})
 include(FetchContent)
 
 add_library(murmur3 STATIC
-  extern/murmur3/MurmurHash3.cpp
+  external/murmur3/MurmurHash3.cpp
 )
-target_include_directories(murmur3 PUBLIC extern/murmur3)
+target_include_directories(murmur3 PUBLIC external/murmur3)
 
 ## CORE LIBRARY + SERVER
-add_subdirectory(src)
-# add_subdirectory(server)
+add_subdirectory(src/cacherouter)
+# add_subdirectory(src/server)
+
+add_executable(cacherouter_demo src/main.cpp)
+target_link_libraries(cacherouter_demo PRIVATE cacherouter::core)
 
 if (CACHEROUTER_BUILD_TESTS)
-  enable_testing()
-  add_subdirectory(test)
+    enable_testing()
+    add_subdirectory(test)
 endif()

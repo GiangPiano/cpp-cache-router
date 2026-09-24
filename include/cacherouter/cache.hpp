@@ -9,8 +9,8 @@
 #include <unordered_map>
 #include <utility>
 
-#include "events.hpp"
-#include "eviction_policy.hpp"
+#include "cacherouter/events.hpp"
+#include "cacherouter/policy/eviction_policy.hpp"
 
 namespace cacherouter {
 
@@ -21,7 +21,9 @@ public:
         : capacity_{capacity}
         , policy_{std::move(policy)} {};
 
-    void set_event_sink(std::function<void(CacheEvent)> sink) { on_event_ = std::move(sink); };
+    void set_event_handler(std::function<void(CacheEvent)> handler) {
+        on_event_ = std::move(handler);
+    };
 
     std::optional<V> get(const K& key) {
         std::string skey = to_string(key);
@@ -69,7 +71,7 @@ private:
     }
 
     void emit(CacheEventType type, const std::string& key) {
-        if (on_event_) on_event_({.type = type, .key = key, .emitter = ""});
+        if (on_event_) on_event_({.type = type, .key = key});
     };
 
     size_t capacity_;

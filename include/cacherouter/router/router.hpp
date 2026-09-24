@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace cacherouter {
+namespace cacherouter::router {
 
 using NodeId = std::string;
 
@@ -20,4 +20,4 @@ public:
     [[nodiscard]] virtual std::string name() const = 0;
 };
 
-}  // namespace cacherouter
+}  // namespace cacherouter::router

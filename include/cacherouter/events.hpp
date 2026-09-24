@@ -5,7 +5,7 @@
 #include <string>
 #include <variant>
 
-#include "routers/router.hpp"
+#include "cacherouter/router/router.hpp"
 
 namespace cacherouter {
 
@@ -13,12 +13,13 @@ enum class CacheEventType : uint8_t { Hit, Miss, Insert, Evict, Update };
 struct CacheEvent {
     CacheEventType type;
     std::string key;
-    NodeId emitter;
+    // NodeId emitter;
 };
 
 struct RouterEvent {
     std::string key;
-    NodeId node;
+    router::NodeId node;
+    std::string router_name;
 };
 
 struct Event {

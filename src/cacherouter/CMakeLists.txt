@@ -1,10 +1,10 @@
 add_library(cacherouter_core
-  hash_ring.cpp
   cluster.cpp
-  policies/lru_policy.cpp
-  policies/lfu_policy.cpp
-  routers/simple_router.cpp
-  routers/consistent_router.cpp
+  policy/lru_policy.cpp
+  # policy/lfu_policy.cpp
+  router/simple_router.cpp
+  router/consistent_router.cpp
+  router/hash_ring.cpp
 )
 add_library(cacherouter::core ALIAS cacherouter_core)
 

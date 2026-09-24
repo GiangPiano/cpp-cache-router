@@ -4,10 +4,10 @@
 #include <string>
 #include <vector>
 
-#include "hash_ring.hpp"
-#include "router.hpp"
+#include "cacherouter/router/hash_ring.hpp"
+#include "cacherouter/router/router.hpp"
 
-namespace cacherouter {
+namespace cacherouter::router {
 
 class ConsistentRouter final : public Router {
 public:
@@ -26,4 +26,4 @@ private:
     HashRing ring_;
 };
 
-}  // namespace cacherouter
+}  // namespace cacherouter::router

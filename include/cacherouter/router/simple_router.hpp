@@ -3,9 +3,9 @@
 #include <string>
 #include <vector>
 
-#include "cacherouter/routers/router.hpp"
+#include "cacherouter/router/router.hpp"
 
-namespace cacherouter {
+namespace cacherouter::router {
 
 class SimpleRouter final : public Router {
 public:
@@ -20,4 +20,4 @@ private:
     std::vector<NodeId> nodes_;
 };
 
-}  // namespace cacherouter
+}  // namespace cacherouter::router
