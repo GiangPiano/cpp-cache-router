@@ -4,15 +4,14 @@
 #include <string>
 #include <vector>
 
+#include "cacherouter/node.hpp"
+
 namespace cacherouter::router {
-
-using NodeId = std::string;
-
 class Router {
 public:
     virtual ~Router() = default;
 
-    virtual void add_node(const NodeId& node) = 0;
+    virtual void add_node(const NodeId& node, int virtual_nodes = 100) = 0;
     virtual void remove_node(const NodeId& node) = 0;
 
     [[nodiscard]] virtual NodeId route(const std::string& key) const = 0;

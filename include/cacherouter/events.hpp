@@ -5,7 +5,7 @@
 #include <string>
 #include <variant>
 
-#include "cacherouter/router/router.hpp"
+#include "cacherouter/node.hpp"
 
 namespace cacherouter {
 
@@ -18,7 +18,7 @@ struct CacheEvent {
 
 struct RouterEvent {
     std::string key;
-    router::NodeId node;
+    NodeId node;
     std::string router_name;
 };
 

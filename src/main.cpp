@@ -125,8 +125,8 @@ void demo_cache_cluster() {
             e.event);
     });
 
-    cluster.add_node("node-A", 2, "lru");
-    cluster.add_node("node-B", 2, "lru");
+    cluster.add_node({"node-A", 2, "lru"});
+    cluster.add_node({"node-B", 2, "lru"});
 
     std::cout << "put(\"alpha\", \"1\")\n";
     cluster.put("alpha", "1");

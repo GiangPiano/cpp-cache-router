@@ -1,12 +1,638 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
+    <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title></title>
-    <link href="css/style.css" rel="stylesheet" />
+    <title>Cache Router</title>
+    <style>
+      :root {
+        --bg: #f7f7f5;
+        --panel: #ffffff;
+        --ink: #17181a;
+        --muted: #6b7280;
+        --line: #e4e4e0;
+        --accent: #0f766e;
+        --danger: #b3401f;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.5 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 48px 24px 96px;
+      }
+      h1 {
+        font-size: 28px;
+        font-weight: 600;
+        margin: 0 0 4px;
+      }
+      .sub {
+        color: var(--muted);
+        margin: 0 0 32px;
+        font-size: 14px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(280px, 420px) 1fr;
+        gap: 0 56px;
+        align-items: start;
+      }
+      .ring-col {
+        position: sticky;
+        top: 48px;
+      }
+      section {
+        padding: 28px 0;
+        border-top: 1px solid var(--line);
+      }
+      section:first-of-type {
+        border-top: none;
+        padding-top: 0;
+      }
+      @media (max-width: 860px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        .ring-col {
+          position: static;
+        }
+      }
+      h2 {
+        font-size: 15px;
+        font-weight: 600;
+        margin: 0 0 4px;
+      }
+      .hint {
+        color: var(--muted);
+        font-size: 13px;
+        margin: 0 0 16px;
+      }
+      .mono {
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      }
+      #ring-svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        margin-top: 12px;
+        font-size: 13px;
+      }
+      .legend span.item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .swatch {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      form {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      input,
+      select {
+        font: inherit;
+        padding: 7px 10px;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        background: var(--panel);
+        color: var(--ink);
+      }
+      input[type="number"] {
+        width: 110px;
+      }
+      button {
+        font: inherit;
+        padding: 7px 14px;
+        border-radius: 5px;
+        border: 1px solid var(--ink);
+        background: var(--ink);
+        color: #fff;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: transparent;
+        color: var(--ink);
+      }
+      button:hover {
+        opacity: 0.85;
+      }
+      ul.nodes {
+        list-style: none;
+        margin: 12px 0 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      ul.nodes li {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        font-size: 14px;
+      }
+      ul.nodes li .mono {
+        flex: 1;
+      }
+      ul.nodes input.vnodes {
+        width: 66px;
+        margin-right: 8px;
+        padding: 3px 6px;
+        font-size: 12px;
+      }
+      ul.nodes button {
+        padding: 3px 9px;
+        font-size: 12px;
+        background: transparent;
+        color: var(--danger);
+        border-color: currentColor;
+      }
+      .result {
+        margin-top: 12px;
+        font-size: 14px;
+        min-height: 20px;
+      }
+      .result.ok {
+        color: var(--accent);
+      }
+      .result.err {
+        color: var(--danger);
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+      }
+      .ring-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+      @keyframes ring-flash {
+        0% {
+          r: 3;
+          stroke-width: 3;
+          opacity: 1;
+        }
+        100% {
+          r: 26;
+          stroke-width: 1;
+          opacity: 0;
+        }
+      }
+      .flash {
+        fill: none;
+        animation: ring-flash 650ms ease-out forwards;
+        pointer-events: none;
+      }
+    </style>
   </head>
   <body>
-    <h1>Cache Router</h1>
+    <main>
+      <h1>Cache Router</h1>
+      <p class="sub" id="status">Loading…</p>
+
+      <div class="layout">
+        <aside class="ring-col">
+          <section>
+            <div class="ring-head">
+              <h2>Hash ring</h2>
+              <button id="history-toggle" class="secondary" type="button">
+                Hide history
+              </button>
+            </div>
+            <p class="hint">
+              Small dots are virtual nodes; outlined dots mark keys you've
+              looked up.
+            </p>
+            <svg id="ring-svg" viewBox="0 0 400 400"></svg>
+            <div class="legend" id="legend"></div>
+          </section>
+        </aside>
+
+        <div class="panel-col">
+          <section>
+            <h2>Nodes</h2>
+            <p class="hint">Add or remove shards.</p>
+            <form id="add-node-form">
+              <input type="text" id="node-id" placeholder="node id" required />
+              <input
+                type="number"
+                id="node-capacity"
+                placeholder="capacity"
+                min="1"
+                required
+              />
+              <input
+                type="number"
+                id="node-vnodes"
+                placeholder="virtual nodes"
+                min="1"
+              />
+              <select id="node-policy">
+                <option value="lru">lru</option>
+              </select>
+              <button type="submit">Add node</button>
+            </form>
+            <ul class="nodes" id="node-list"></ul>
+          </section>
+
+          <section>
+            <h2>Look up a key</h2>
+            <form id="cache-form" class="row">
+              <input type="text" id="cache-key" placeholder="key" required />
+              <input
+                type="text"
+                id="cache-value"
+                placeholder="value (for put)"
+              />
+              <button type="submit" data-action="get">Get</button>
+              <button type="submit" data-action="put" class="secondary">
+                Put
+              </button>
+            </form>
+            <p class="result" id="cache-result"></p>
+          </section>
+
+          <section>
+            <h2>Traffic simulation</h2>
+            <p class="hint">
+              Every put writes a brand-new key; gets only draw from keys already
+              written, so the hit rate reflects real cache behavior — including
+              real evictions once the working set outgrows a node's capacity.
+            </p>
+            <button id="sim-toggle" type="button">
+              Start simulating traffic
+            </button>
+            <p class="result" id="sim-stats">No lookups yet.</p>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      const PALETTE = [
+        "#0f766e",
+        "#b3401f",
+        "#5b5bd6",
+        "#a16207",
+        "#0369a1",
+        "#9d174d",
+      ];
+      function colorFor(node, order) {
+        return PALETTE[order.indexOf(node) % PALETTE.length];
+      }
+
+      const cx = 200,
+        cy = 200,
+        r = 160;
+      const twoPow64 = Number(2n ** 64n);
+      function pointFor(hashStr) {
+        const frac = Number(BigInt(hashStr)) / twoPow64;
+        const angle = frac * 2 * Math.PI - Math.PI / 2;
+        return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+      }
+
+      let currentNodeOrder = [];
+      let currentRing = [];
+      let history = []; // [{ key, hash, node }] — looked-up keys, deduped by key
+      let showHistory = true;
+      const MAX_HISTORY = 30; // oldest dropped first, so long-running traffic sim doesn't grow forever
+
+      function pushHistory(key, hash, node) {
+        const existing = history.findIndex((h) => h.key === key);
+        const entry = { key, hash, node };
+        if (existing >= 0) {
+          history[existing] = entry;
+        } else {
+          history.push(entry);
+          if (history.length > MAX_HISTORY) history.shift();
+        }
+      }
+
+      function renderRing() {
+        const svg = document.getElementById("ring-svg");
+        let content = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#e4e4e0" stroke-width="1"/>`;
+
+        currentRing.forEach(({ hash, node }) => {
+          const { x, y } = pointFor(hash);
+          content += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${colorFor(node, currentNodeOrder)}" opacity="0.85"/>`;
+        });
+
+        if (showHistory) {
+          history.forEach(({ hash, node, key }) => {
+            const { x, y } = pointFor(hash);
+            const c = colorFor(node, currentNodeOrder);
+            content += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="var(--panel)" stroke="${c}" stroke-width="2"><title>${key}</title></circle>`;
+          });
+        }
+
+        svg.innerHTML = content;
+        renderLegend();
+      }
+
+      function renderLegend() {
+        const legend = document.getElementById("legend");
+        const seen = new Set(currentRing.map((p) => p.node));
+        legend.innerHTML = "";
+        currentNodeOrder
+          .filter((n) => seen.has(n))
+          .forEach((node) => {
+            const span = document.createElement("span");
+            span.className = "item";
+            span.innerHTML = `<span class="swatch" style="background:${colorFor(node, currentNodeOrder)}"></span><span class="mono">${node}</span>`;
+            legend.appendChild(span);
+          });
+      }
+
+      function flashAt(hashStr, node) {
+        const svg = document.getElementById("ring-svg");
+        const { x, y } = pointFor(hashStr);
+        const flash = document.createElementNS(
+          "http://www.w3.org/2000/svg",
+          "circle",
+        );
+        flash.setAttribute("cx", x.toFixed(1));
+        flash.setAttribute("cy", y.toFixed(1));
+        flash.setAttribute("r", "3");
+        flash.setAttribute("stroke", colorFor(node, currentNodeOrder));
+        flash.setAttribute("class", "flash");
+        flash.addEventListener("animationend", () => flash.remove());
+        svg.appendChild(flash);
+      }
+
+      async function refreshNodes() {
+        const nodes = await (await fetch("/api/nodes")).json();
+        console.log(nodes);
+        currentNodeOrder = nodes.map((node) => node.id);
+        const list = document.getElementById("node-list");
+        list.innerHTML = "";
+        nodes.forEach((node) => {
+          const li = document.createElement("li");
+          li.innerHTML = `<span class="mono">${node.id} ${node.capacity} ${node.policy} ${node.virtual_nodes} </span>`;
+
+          const btn = document.createElement("button");
+          btn.textContent = "Remove";
+          btn.onclick = async () => {
+            await fetch(`/api/nodes/${encodeURIComponent(node.id)}`, {
+              method: "DELETE",
+            });
+            await refreshAll();
+          };
+          li.appendChild(btn);
+          list.appendChild(li);
+        });
+        document.getElementById("status").textContent = nodes.length
+          ? `${nodes.length} node${nodes.length === 1 ? "" : "s"} online`
+          : "No nodes yet — add one below.";
+      }
+
+      async function refreshRingData() {
+        const { ring } = await (await fetch("/api/ring")).json();
+        currentRing = ring;
+      }
+
+      async function refreshAll() {
+        await refreshNodes();
+        await refreshRingData();
+        renderRing();
+      }
+
+      document
+        .getElementById("history-toggle")
+        .addEventListener("click", (e) => {
+          showHistory = !showHistory;
+          e.target.textContent = showHistory ? "Hide history" : "Show history";
+          renderRing();
+        });
+
+      document
+        .getElementById("add-node-form")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const id = document.getElementById("node-id").value.trim();
+          const capacity = Number(
+            document.getElementById("node-capacity").value,
+          );
+          const policy = document.getElementById("node-policy").value;
+          const vnodesRaw = document.getElementById("node-vnodes").value.trim();
+          const body = { "node-id": id, capacity, policy };
+          // Omitted entirely when blank, so the ring applies its own default.
+          if (vnodesRaw !== "") body["virtual_nodes"] = Number(vnodesRaw);
+
+          const res = await fetch("/api/nodes", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+          if (!res.ok) {
+            const { error } = await res.json();
+            document.getElementById("status").textContent =
+              `Add failed: ${error}`;
+            return;
+          }
+          e.target.reset();
+          await refreshAll();
+        });
+
+      function nodeForHash(hashStr) {
+        const target = BigInt(hashStr);
+        for (const entry of currentRing) {
+          if (BigInt(entry.hash) >= target) return entry.node;
+        }
+        return currentRing.length ? currentRing[0].node : null; // wrap around, like HashRing::find_node
+      }
+
+      document
+        .getElementById("cache-form")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const action = e.submitter?.dataset.action ?? "get";
+          const key = document.getElementById("cache-key").value.trim();
+          const value = document.getElementById("cache-value").value;
+          const result = document.getElementById("cache-result");
+          result.className = "result";
+          if (!key) return;
+
+          let location = null;
+
+          if (action === "get") {
+            const res = await fetch(`/api/cache/${encodeURIComponent(key)}`);
+            const body = await res.json();
+            result.textContent = res.ok
+              ? `${key} → ${body.value}`
+              : (body.error ?? `Error ${res.status}`);
+            result.classList.add(res.ok ? "ok" : "err");
+            if (body.hash)
+              location = { hash: body.hash, node: nodeForHash(body.hash) };
+          } else {
+            const res = await fetch(`/api/cache/${encodeURIComponent(key)}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ value }),
+            });
+            const body = await res.json().catch(() => ({}));
+            if (res.ok) {
+              result.textContent = `Saved ${key}.`;
+              result.classList.add("ok");
+              if (body.hash)
+                location = { hash: body.hash, node: nodeForHash(body.hash) };
+            } else {
+              result.textContent = body.error ?? `Error ${res.status}`;
+              result.classList.add("err");
+            }
+          }
+
+          if (location) {
+            flashAt(location.hash, location.node);
+            pushHistory(key, location.hash, location.node);
+            renderRing();
+          }
+        });
+
+      refreshAll();
+
+      // --- Traffic simulation -----------------------------------------------
+      // A small pool of keys gets warmed up by occasional puts, so gets against
+      // them mostly hit; gets against a freshly-generated key always miss, since
+      // nothing ever writes them. That mix is what makes the hit rate move.
+      // --- Realistic Traffic Simulation -----------------------------------------
+
+      const KEY_UNIVERSE_SIZE = 500; // Total universe of items (e.g., item:1 to item:500)
+      const ZIPF_EXPONENT = 1.1; // Controls skew: >1 means steep power law (a few hot keys)
+      const WRITE_PROBABILITY = 0.05; // 5% explicit background mutations/writes, 95% reads
+      const SIM_DELAY_MS = 0; // Rate throttle so the browser loop doesn't choke
+
+      let simRunning = false;
+      const simStats = { total: 0, hits: 0, misses: 0, puts: 0 };
+
+      // Precompute cumulative probabilities for Zipf distribution: P(k) ~ 1 / k^s
+      const zipfWeights = (() => {
+        const weights = [];
+        let sum = 0;
+        for (let i = 1; i <= KEY_UNIVERSE_SIZE; i++) {
+          sum += 1 / Math.pow(i, ZIPF_EXPONENT);
+          weights.push(sum);
+        }
+        return weights.map((w) => w / sum); // Normalize to [0, 1]
+      })();
+
+      function pickZipfKey() {
+        const r = Math.random();
+        // Binary search for rank
+        let lo = 0,
+          hi = zipfWeights.length - 1;
+        while (lo < hi) {
+          const mid = (lo + hi) >> 1;
+          if (r < zipfWeights[mid]) hi = mid;
+          else lo = mid + 1;
+        }
+        return `item:${lo + 1}`;
+      }
+
+      function renderSimStats() {
+        const el = document.getElementById("sim-stats");
+        if (!simStats.total) {
+          el.textContent = "No lookups yet.";
+          return;
+        }
+        const rate = Math.round((simStats.hits / simStats.total) * 100);
+        el.textContent = `${simStats.total} reads · ${simStats.hits} hits · ${simStats.misses} misses · ${rate}% hit rate (${simStats.puts} writes)`;
+      }
+
+      async function simulateOnce() {
+        const key = pickZipfKey();
+        const isExplicitPut = Math.random() < WRITE_PROBABILITY;
+
+        let location = null;
+
+        if (isExplicitPut) {
+          // 1. Direct write/invalidation (e.g., an item update)
+          const res = await fetch(`/api/cache/${encodeURIComponent(key)}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ value: String(Date.now()) }),
+          });
+          const body = await res.json().catch(() => ({}));
+          simStats.puts++;
+          if (body.hash)
+            location = { hash: body.hash, node: nodeForHash(body.hash) };
+        } else {
+          // 2. Cache-Aside GET
+          const res = await fetch(`/api/cache/${encodeURIComponent(key)}`);
+          simStats.total++;
+
+          if (res.ok) {
+            simStats.hits++;
+            const body = await res.json().catch(() => ({}));
+            if (body.hash)
+              location = { hash: body.hash, node: nodeForHash(body.hash) };
+          } else {
+            // Cache Miss: Emulate origin fetch + backfill PUT
+            simStats.misses++;
+            const putRes = await fetch(
+              `/api/cache/${encodeURIComponent(key)}`,
+              {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ value: `origin-val-${key}` }),
+              },
+            );
+            const putBody = await putRes.json().catch(() => ({}));
+            if (putBody.hash)
+              location = {
+                hash: putBody.hash,
+                node: nodeForHash(putBody.hash),
+              };
+          }
+        }
+
+        renderSimStats();
+
+        if (location) {
+          flashAt(location.hash, location.node);
+          pushHistory(key, location.hash, location.node);
+          renderRing();
+        }
+      }
+
+      async function simulationLoop() {
+        while (simRunning) {
+          await simulateOnce();
+          await new Promise((resolve) => setTimeout(resolve, SIM_DELAY_MS));
+        }
+      }
+
+      document.getElementById("sim-toggle").addEventListener("click", (e) => {
+        simRunning = !simRunning;
+        e.target.textContent = simRunning
+          ? "Stop simulating traffic"
+          : "Start simulating traffic";
+        if (simRunning) simulationLoop();
+      });
+    </script>
   </body>
 </html>

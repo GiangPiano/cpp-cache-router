@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "cacherouter/node.hpp"
 #include "cacherouter/router/hash_ring.hpp"
 #include "cacherouter/router/router.hpp"
 
@@ -13,7 +14,7 @@ class ConsistentRouter final : public Router {
 public:
     explicit ConsistentRouter(int virtual_nodes = 100);
 
-    void add_node(const NodeId& node) override;
+    void add_node(const NodeId& node, int virtual_nodes = 100) override;
     void remove_node(const NodeId& node) override;
 
     [[nodiscard]] NodeId route(const std::string& key) const override;

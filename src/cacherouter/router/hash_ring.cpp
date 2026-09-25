@@ -13,10 +13,10 @@ namespace cacherouter::router {
 
 HashRing::HashRing(int virtual_nodes) : vnodes_(virtual_nodes) {}
 
-void HashRing::add_node(const std::string& node) {
+void HashRing::add_node(const std::string& node, std::optional<int> virtual_nodes) {
     if (ring_.contains(hash(node))) return;
     ring_.emplace(hash(node), node);
-    for (int i = 0; i < vnodes_; i++) {
+    for (int i = 0; i < virtual_nodes.value_or(vnodes_); i++) {
         ring_.emplace(hash(node + ":" + std::to_string(i)), node);
     }
 }
@@ -42,7 +42,5 @@ void HashRing::remove_node(const std::string& node) {
 };
 
 [[nodiscard]] const std::map<uint64_t, std::string>& HashRing::get_ring() const { return ring_; }
-
-uint64_t HashRing::hash(const std::string& key) { return hash_key(key); }
 
 }  // namespace cacherouter::router

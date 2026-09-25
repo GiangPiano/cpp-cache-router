@@ -3,13 +3,14 @@
 #include <string>
 #include <vector>
 
+#include "cacherouter/node.hpp"
 #include "cacherouter/router/router.hpp"
 
 namespace cacherouter::router {
 
 class SimpleRouter final : public Router {
 public:
-    void add_node(const NodeId& node) override;
+    void add_node(const NodeId& node, int virtual_nodes = 100) override;
     void remove_node(const NodeId& node) override;
 
     [[nodiscard]] NodeId route(const std::string& key) const override;
