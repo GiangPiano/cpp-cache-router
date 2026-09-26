@@ -25,9 +25,6 @@ target_include_directories(murmur3 PUBLIC external/murmur3)
 add_subdirectory(src/cacherouter)
 add_subdirectory(src/server)
 
-add_executable(cacherouter_demo src/main.cpp)
-target_link_libraries(cacherouter_demo PRIVATE cacherouter::core)
-
 if (CACHEROUTER_BUILD_TESTS)
     enable_testing()
     add_subdirectory(test)

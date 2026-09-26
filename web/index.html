@@ -1,0 +1,1232 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cache Router</title>
+    <style>
+      :root {
+        --bg: #f7f7f5;
+        --panel: #ffffff;
+        --ink: #17181a;
+        --muted: #6b7280;
+        --line: #e4e4e0;
+        --accent: #0f766e;
+        --danger: #b3401f;
+        --warning: #a16207;
+        /* Meter ramps: fill carries severity, track is a lighter step of the
+           same hue so the state reads across the whole bar. */
+        --meter-ok: #0f766e;
+        --meter-ok-track: #d7e7e5;
+        --meter-warn: #a16207;
+        --meter-warn-track: #efe4cd;
+        --meter-danger: #b3401f;
+        --meter-danger-track: #f1dbd3;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.5 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: 1040px;
+        margin: 0 auto;
+        padding: 48px 24px 96px;
+      }
+      h1 {
+        font-size: 28px;
+        font-weight: 600;
+        margin: 0 0 4px;
+      }
+      .sub {
+        color: var(--muted);
+        margin: 0 0 32px;
+        font-size: 14px;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(280px, 420px) 1fr;
+        gap: 0 56px;
+        align-items: start;
+      }
+      .ring-col {
+        position: sticky;
+        top: 48px;
+      }
+      section {
+        padding: 28px 0;
+        border-top: 1px solid var(--line);
+      }
+      section:first-of-type {
+        border-top: none;
+        padding-top: 0;
+      }
+      @media (max-width: 860px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        .ring-col {
+          position: static;
+        }
+      }
+      h2 {
+        font-size: 15px;
+        font-weight: 600;
+        margin: 0 0 4px;
+      }
+      .hint {
+        color: var(--muted);
+        font-size: 13px;
+        margin: 0 0 16px;
+      }
+      .mono {
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      }
+      #ring-svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        margin-top: 12px;
+        font-size: 13px;
+      }
+      .legend span.item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .swatch {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      form {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      input,
+      select {
+        font: inherit;
+        padding: 7px 10px;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        background: var(--panel);
+        color: var(--ink);
+      }
+      input[type="number"] {
+        width: 110px;
+      }
+      button {
+        font: inherit;
+        padding: 7px 14px;
+        border-radius: 5px;
+        border: 1px solid var(--ink);
+        background: var(--ink);
+        color: #fff;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: transparent;
+        color: var(--ink);
+      }
+      button:hover {
+        opacity: 0.85;
+      }
+      ul.nodes {
+        list-style: none;
+        margin: 16px 0 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+        gap: 10px;
+      }
+      .node-card {
+        position: relative;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 12px 14px;
+        background: var(--panel);
+        overflow: hidden;
+      }
+      /* Identity bar: matches the node's colour in the ring and bucket views. */
+      .node-card::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: var(--node);
+      }
+      .node-card-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 2px;
+      }
+      .node-card-head .node-name {
+        font-size: 14px;
+        font-weight: 600;
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .node-meta {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 10px;
+      }
+      ul.nodes button {
+        padding: 3px 9px;
+        font-size: 12px;
+        background: transparent;
+        color: var(--danger);
+        border-color: currentColor;
+        flex: none;
+      }
+      .meter {
+        height: 6px;
+        border-radius: 3px;
+        background: var(--track);
+        overflow: hidden;
+      }
+      .meter-fill {
+        height: 100%;
+        border-radius: 3px;
+        background: var(--fill);
+        transition: width 220ms ease-out;
+      }
+      .meter-ok {
+        --fill: var(--meter-ok);
+        --track: var(--meter-ok-track);
+      }
+      .meter-warn {
+        --fill: var(--meter-warn);
+        --track: var(--meter-warn-track);
+      }
+      .meter-danger {
+        --fill: var(--meter-danger);
+        --track: var(--meter-danger-track);
+      }
+      .meter-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+      .meter-label .pct {
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* --- statistics panel --- */
+      .stats-panel {
+        margin-top: 8px;
+        border-top: 1px solid var(--line);
+        padding-top: 28px;
+      }
+      .stats-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .stats-head .hint {
+        max-width: 620px;
+      }
+      .stats-grid {
+        display: grid;
+        grid-template-columns: minmax(200px, 260px) 1fr;
+        gap: 16px;
+        align-items: stretch;
+        margin-top: 8px;
+      }
+      @media (max-width: 720px) {
+        .stats-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .hero,
+      .tile {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        padding: 16px 18px;
+      }
+      .hero {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      .hero-value {
+        font-size: 52px;
+        line-height: 1.05;
+        font-weight: 600;
+        margin: 4px 0 2px;
+      }
+      .kpi-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+        gap: 10px;
+      }
+      .stat-label {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .stat-value {
+        display: block;
+        font-size: 26px;
+        font-weight: 600;
+        margin-top: 4px;
+      }
+      .stat-sub {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .result {
+        margin-top: 12px;
+        font-size: 14px;
+        min-height: 20px;
+      }
+      .result.ok {
+        color: var(--accent);
+      }
+      .result.err {
+        color: var(--danger);
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+      }
+      .ring-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+      @keyframes ring-flash {
+        0% {
+          r: 3;
+          stroke-width: 3;
+          opacity: 1;
+        }
+        100% {
+          r: 26;
+          stroke-width: 1;
+          opacity: 0;
+        }
+      }
+      .flash {
+        fill: none;
+        animation: ring-flash 650ms ease-out forwards;
+        pointer-events: none;
+      }
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin: 0 0 28px;
+      }
+      .toolbar label {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .toolbar .spacer {
+        flex: 1;
+      }
+      .toolbar button {
+        padding: 6px 12px;
+        font-size: 13px;
+      }
+      .buckets {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .bucket {
+        position: relative;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 10px 12px 10px 15px;
+        background: var(--panel);
+        overflow: hidden;
+      }
+      /* The colour bar is its own element so a hit can pulse it alone. */
+      .bucket::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: var(--node);
+      }
+      .bucket-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        margin-bottom: 8px;
+      }
+      .bucket-index {
+        margin-left: auto;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .chip {
+        font-size: 11px;
+        padding: 2px 7px;
+        border-radius: 10px;
+        border: 1px solid var(--node);
+        color: var(--node);
+      }
+      .chips .empty {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      @keyframes bar-flash {
+        0% {
+          width: 3px;
+          opacity: 1;
+        }
+        18% {
+          width: 9px;
+          opacity: 1;
+        }
+        100% {
+          width: 3px;
+          opacity: 0.85;
+        }
+      }
+      .bucket.hit::before {
+        animation: bar-flash 650ms ease-out;
+      }
+      .remap {
+        margin-top: 12px;
+        font-size: 13px;
+        color: var(--muted);
+        min-height: 18px;
+      }
+      .remap strong {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Cache Router</h1>
+      <p class="sub" id="status">Loading…</p>
+
+      <div class="toolbar">
+        <label for="router-select">Router</label>
+        <select id="router-select"></select>
+        <span class="spacer"></span>
+        <button id="reset-data" class="secondary" type="button">
+          Clear cached data
+        </button>
+        <button id="reset-all" class="secondary" type="button">
+          Remove all nodes
+        </button>
+      </div>
+
+      <div class="layout">
+        <aside class="ring-col">
+          <section>
+            <div class="ring-head">
+              <h2 id="viz-title">Hash ring</h2>
+              <button id="history-toggle" class="secondary" type="button">
+                Hide history
+              </button>
+            </div>
+            <p class="hint" id="viz-hint"></p>
+
+            <div id="ring-view">
+              <svg id="ring-svg" viewBox="0 0 400 400"></svg>
+            </div>
+
+            <div id="bucket-view" hidden>
+              <div class="buckets" id="bucket-list"></div>
+            </div>
+
+            <div class="legend" id="legend"></div>
+            <p class="remap" id="remap"></p>
+          </section>
+        </aside>
+
+        <div class="panel-col">
+          <section>
+            <h2>Nodes</h2>
+            <p class="hint">Add or remove shards.</p>
+            <form id="add-node-form">
+              <input type="text" id="node-id" placeholder="node id" required />
+              <input
+                type="number"
+                id="node-capacity"
+                placeholder="capacity"
+                min="1"
+                required
+              />
+              <input
+                type="number"
+                id="node-vnodes"
+                placeholder="virtual nodes"
+                min="1"
+              />
+              <select id="node-policy">
+                <option value="lru">lru</option>
+              </select>
+              <button type="submit">Add node</button>
+            </form>
+            <ul class="nodes" id="node-list"></ul>
+          </section>
+
+          <section>
+            <h2>Look up a key</h2>
+            <form id="cache-form" class="row">
+              <input type="text" id="cache-key" placeholder="key" required />
+              <input
+                type="text"
+                id="cache-value"
+                placeholder="value (for put)"
+              />
+              <button type="submit" data-action="get">Get</button>
+              <button type="submit" data-action="put" class="secondary">
+                Put
+              </button>
+            </form>
+            <p class="result" id="cache-result"></p>
+          </section>
+
+        </div>
+      </div>
+
+      <section class="stats-panel">
+        <div class="stats-head">
+          <div>
+            <h2>Traffic simulation</h2>
+            <p class="hint">
+              Reads follow a Zipf distribution over a 500-key universe, so a few
+              keys stay hot. A miss backfills from the origin, which means the
+              hit rate reflects real cache behavior — including real evictions
+              once the working set outgrows a node's capacity.
+            </p>
+          </div>
+          <button id="sim-toggle" type="button">Start simulating traffic</button>
+        </div>
+
+        <div class="stats-grid">
+          <div class="hero">
+            <span class="stat-label">Hit rate</span>
+            <span class="hero-value" id="stat-hitrate">—</span>
+            <span class="stat-sub" id="stat-hitrate-sub">No lookups yet</span>
+          </div>
+          <div class="kpi-row">
+            <div class="tile">
+              <span class="stat-label">Reads</span>
+              <span class="stat-value" id="stat-reads">0</span>
+            </div>
+            <div class="tile">
+              <span class="stat-label">Hits</span>
+              <span class="stat-value" id="stat-hits">0</span>
+            </div>
+            <div class="tile">
+              <span class="stat-label">Misses</span>
+              <span class="stat-value" id="stat-misses">0</span>
+            </div>
+            <div class="tile">
+              <span class="stat-label">Writes</span>
+              <span class="stat-value" id="stat-writes">0</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const PALETTE = [
+        "#0f766e",
+        "#b3401f",
+        "#5b5bd6",
+        "#a16207",
+        "#0369a1",
+        "#9d174d",
+      ];
+      function colorFor(node, order) {
+        return PALETTE[order.indexOf(node) % PALETTE.length];
+      }
+
+      const cx = 200,
+        cy = 200,
+        r = 160;
+      const twoPow64 = Number(2n ** 64n);
+      function pointFor(hashStr) {
+        const frac = Number(BigInt(hashStr)) / twoPow64;
+        const angle = frac * 2 * Math.PI - Math.PI / 2;
+        return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+      }
+
+      const esc = (t) =>
+        String(t).replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
+        );
+
+      let nodeIds = []; // sorted, so a node keeps its colour across refreshes
+      let currentRouter = "consistent";
+      let currentTopology = { ring: [] };
+      let history = []; // [{ key, hash, node }] — looked-up keys, deduped by key
+      let showHistory = true;
+      const MAX_HISTORY = 30; // oldest dropped first, so long-running traffic sim doesn't grow forever
+
+      const isConsistent = () => currentRouter === "consistent";
+
+      function pushHistory(key, hash, node) {
+        const existing = history.findIndex((h) => h.key === key);
+        const entry = { key, hash, node };
+        if (existing >= 0) {
+          history[existing] = entry;
+        } else {
+          history.push(entry);
+          if (history.length > MAX_HISTORY) history.shift();
+        }
+      }
+
+      // --- client-side mirrors of the two C++ routers -----------------------
+      // Both take the server-reported hash and reproduce the placement locally,
+      // so the page can show where a key lands without another round trip.
+
+      function bucketForHash(hashStr) {
+        const buckets = currentTopology.buckets ?? [];
+        if (!buckets.length) return -1;
+        return Number(BigInt(hashStr) % BigInt(buckets.length)); // SimpleRouter::route
+      }
+
+      function nodeForHash(hashStr) {
+        if (isConsistent()) {
+          const ring = currentTopology.ring ?? [];
+          const target = BigInt(hashStr);
+          for (const entry of ring) {
+            if (BigInt(entry.hash) >= target) return entry.node;
+          }
+          return ring.length ? ring[0].node : null; // wrap around, like HashRing::find_node
+        }
+        const buckets = currentTopology.buckets ?? [];
+        const i = bucketForHash(hashStr);
+        return i < 0 ? null : buckets[i];
+      }
+
+      // --- rendering --------------------------------------------------------
+
+      const VIZ_COPY = {
+        consistent: {
+          title: "Hash ring",
+          hint: "Small dots are virtual nodes; outlined dots mark keys you've looked up. A key walks clockwise to the first node dot it meets.",
+        },
+        simple: {
+          title: "Modulo buckets",
+          hint: "Each node is one bucket, picked by hash % node-count. Change the node count and every bucket boundary moves at once.",
+        },
+      };
+
+      function renderViz() {
+        const copy = VIZ_COPY[currentRouter] ?? VIZ_COPY.consistent;
+        document.getElementById("viz-title").textContent = copy.title;
+        document.getElementById("viz-hint").textContent = copy.hint;
+
+        document.getElementById("ring-view").hidden = !isConsistent();
+        document.getElementById("bucket-view").hidden = isConsistent();
+
+        if (isConsistent()) renderRing();
+        else renderBuckets();
+        renderLegend();
+      }
+
+      function renderRing() {
+        const svg = document.getElementById("ring-svg");
+        let content = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#e4e4e0" stroke-width="1"/>`;
+
+        (currentTopology.ring ?? []).forEach(({ hash, node }) => {
+          const { x, y } = pointFor(hash);
+          content += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="${colorFor(node, nodeIds)}" opacity="0.85"/>`;
+        });
+
+        if (showHistory) {
+          history.forEach(({ hash, node, key }) => {
+            const { x, y } = pointFor(hash);
+            const c = colorFor(node, nodeIds);
+            content += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="var(--panel)" stroke="${c}" stroke-width="2"><title>${esc(key)}</title></circle>`;
+          });
+        }
+
+        svg.innerHTML = content;
+      }
+
+      function renderBuckets() {
+        const wrap = document.getElementById("bucket-list");
+        const buckets = currentTopology.buckets ?? [];
+        wrap.innerHTML = "";
+
+        if (!buckets.length) {
+          wrap.innerHTML = `<p class="hint">No nodes — add one to create a bucket.</p>`;
+          return;
+        }
+
+        buckets.forEach((node, i) => {
+          const color = colorFor(node, nodeIds);
+          const keys = showHistory
+            ? history.filter((h) => bucketForHash(h.hash) === i)
+            : [];
+
+          const div = document.createElement("div");
+          div.className = "bucket";
+          div.dataset.index = String(i);
+          div.style.setProperty("--node", color);
+          div.innerHTML =
+            `<div class="bucket-head">` +
+            `<span class="swatch" style="background:${color}"></span>` +
+            `<span class="mono">${esc(node)}</span>` +
+            `<span class="bucket-index mono">hash % ${buckets.length} = ${i}</span>` +
+            `</div>` +
+            `<div class="chips">` +
+            (keys.length
+              ? keys
+                  .map((k) => `<span class="chip mono">${esc(k.key)}</span>`)
+                  .join("")
+              : `<span class="empty">no keys yet</span>`) +
+            `</div>`;
+          wrap.appendChild(div);
+        });
+      }
+
+      function renderLegend() {
+        const legend = document.getElementById("legend");
+        const present = new Set(
+          isConsistent()
+            ? (currentTopology.ring ?? []).map((p) => p.node)
+            : (currentTopology.buckets ?? []),
+        );
+        legend.innerHTML = "";
+        nodeIds
+          .filter((n) => present.has(n))
+          .forEach((node) => {
+            const span = document.createElement("span");
+            span.className = "item";
+            span.innerHTML = `<span class="swatch" style="background:${colorFor(node, nodeIds)}"></span><span class="mono">${esc(node)}</span>`;
+            legend.appendChild(span);
+          });
+      }
+
+      function flashAt(hashStr, node) {
+        if (isConsistent()) {
+          const svg = document.getElementById("ring-svg");
+          const { x, y } = pointFor(hashStr);
+          const flash = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "circle",
+          );
+          flash.setAttribute("cx", x.toFixed(1));
+          flash.setAttribute("cy", y.toFixed(1));
+          flash.setAttribute("r", "3");
+          flash.setAttribute("stroke", colorFor(node, nodeIds));
+          flash.setAttribute("class", "flash");
+          flash.addEventListener("animationend", () => flash.remove());
+          svg.appendChild(flash);
+          return;
+        }
+
+        const i = bucketForHash(hashStr);
+        const col = document.querySelector(`.bucket[data-index="${i}"]`);
+        if (!col) return;
+        col.classList.remove("hit");
+        void col.offsetWidth; // restart the animation on a repeated hit
+        col.classList.add("hit");
+      }
+
+      // --- remap accounting -------------------------------------------------
+      // The whole point of the two routers: adding or removing a node reshuffles
+      // every bucket under SimpleRouter, but only one ring segment under
+      // ConsistentRouter. Snapshot where the tracked keys live, change the
+      // topology, then compare.
+
+      function assignmentSnapshot() {
+        const m = new Map();
+        history.forEach((h) => m.set(h.key, nodeForHash(h.hash)));
+        return m;
+      }
+
+      function reportRemap(before) {
+        const el = document.getElementById("remap");
+        const after = assignmentSnapshot();
+
+        let moved = 0;
+        let total = 0;
+        before.forEach((node, key) => {
+          if (!after.has(key) || node === null || after.get(key) === null)
+            return;
+          total++;
+          if (after.get(key) !== node) moved++;
+        });
+
+        if (!total) {
+          el.textContent = "";
+          return;
+        }
+        const pct = Math.round((moved / total) * 100);
+        el.innerHTML = `Topology changed under <strong>${esc(currentRouter)}</strong>: <strong>${moved} of ${total}</strong> tracked keys moved to a different node (<strong>${pct}%</strong>).`;
+      }
+
+      // Wraps any change to the node set so the remap cost is always reported.
+      async function topologyChange(fn) {
+        const before = assignmentSnapshot();
+        if ((await fn()) === false) return;
+        await refreshAll();
+        // Stored placements are stale once the topology moves; re-derive them.
+        history = history.map((h) => ({
+          ...h,
+          node: nodeForHash(h.hash) ?? h.node,
+        }));
+        reportRemap(before);
+        renderViz();
+      }
+
+      // --- data loading -----------------------------------------------------
+
+      // Fullness drives severity, not node identity: the card's left bar already
+      // carries identity, so the meter is free to mean "how close to full".
+      function meterClass(pct) {
+        if (pct >= 90) return "meter-danger";
+        if (pct >= 70) return "meter-warn";
+        return "meter-ok";
+      }
+
+      const nodeCards = new Map(); // id -> { meter, fill, used, pct }
+
+      function applyUsage(id, used, capacity) {
+        const card = nodeCards.get(id);
+        if (!card) return;
+        const pct = capacity ? Math.min(100, Math.round((used / capacity) * 100)) : 0;
+        card.meter.className = `meter ${meterClass(pct)}`;
+        card.fill.style.width = `${pct}%`;
+        card.used.textContent = `${used} of ${capacity} entries`;
+        card.pct.textContent = `${pct}%`;
+      }
+
+      async function refreshNodes() {
+        const nodes = await (await fetch("/api/nodes")).json();
+        // /api/nodes iterates an unordered_map, so sort for stable colouring.
+        nodeIds = nodes.map((node) => node.id).sort();
+
+        const list = document.getElementById("node-list");
+        list.innerHTML = "";
+        nodeCards.clear();
+
+        nodes
+          .slice()
+          .sort((a, b) => a.id.localeCompare(b.id))
+          .forEach((node) => {
+            const color = colorFor(node.id, nodeIds);
+            const li = document.createElement("li");
+            li.className = "node-card";
+            li.style.setProperty("--node", color);
+            li.innerHTML =
+              `<div class="node-card-head">` +
+              `<span class="swatch" style="background:${color}"></span>` +
+              `<span class="mono node-name">${esc(node.id)}</span>` +
+              `</div>` +
+              `<div class="node-meta mono">${esc(node.policy)} · ${node.virtual_nodes} vnodes</div>` +
+              `<div class="meter meter-ok"><div class="meter-fill"></div></div>` +
+              `<div class="meter-label"><span class="used"></span><span class="pct"></span></div>`;
+
+            const btn = document.createElement("button");
+            btn.textContent = "Remove";
+            btn.onclick = () =>
+              topologyChange(async () => {
+                await fetch(`/api/nodes/${encodeURIComponent(node.id)}`, {
+                  method: "DELETE",
+                });
+              });
+            li.querySelector(".node-card-head").appendChild(btn);
+            list.appendChild(li);
+
+            nodeCards.set(node.id, {
+              meter: li.querySelector(".meter"),
+              fill: li.querySelector(".meter-fill"),
+              used: li.querySelector(".used"),
+              pct: li.querySelector(".pct"),
+            });
+            applyUsage(node.id, node.used ?? 0, node.capacity);
+          });
+
+        document.getElementById("status").textContent = nodes.length
+          ? `${nodes.length} node${nodes.length === 1 ? "" : "s"} online · routing with ${currentRouter}`
+          : "No nodes yet — add one below.";
+      }
+
+      // Capacity moves on every write, but a full re-render would fight the bar's
+      // transition and rebuild the DOM under the traffic sim, so patch in place.
+      let lastMeterRefresh = 0;
+      async function refreshMeters(force = false) {
+        const now = performance.now();
+        if (!force && now - lastMeterRefresh < 400) return;
+        lastMeterRefresh = now;
+        const nodes = await (await fetch("/api/nodes")).json();
+        nodes.forEach((n) => applyUsage(n.id, n.used ?? 0, n.capacity));
+      }
+
+      async function refreshRouterState() {
+        const state = await (await fetch("/api/router")).json();
+        currentRouter = state.name;
+        currentTopology = state.topology ?? {};
+
+        const select = document.getElementById("router-select");
+        if (select.options.length !== state.available.length) {
+          select.innerHTML = state.available
+            .map((n) => `<option value="${esc(n)}">${esc(n)}</option>`)
+            .join("");
+        }
+        select.value = currentRouter;
+      }
+
+      async function refreshAll() {
+        await refreshRouterState();
+        await refreshNodes();
+        renderViz();
+      }
+
+      // Switching routers and resetting both wipe server-side entries, so the
+      // client-side history and hit-rate counters have to go with them.
+      function clearClientState() {
+        history = [];
+        simStats.total = 0;
+        simStats.hits = 0;
+        simStats.misses = 0;
+        simStats.puts = 0;
+        readWindow.length = 0;
+        renderSimStats();
+        const result = document.getElementById("cache-result");
+        result.textContent = "";
+        result.className = "result";
+      }
+
+      // --- controls ---------------------------------------------------------
+
+      document
+        .getElementById("router-select")
+        .addEventListener("change", async (e) => {
+          const name = e.target.value;
+          const res = await fetch("/api/router", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name }),
+          });
+
+          if (!res.ok) {
+            const { error } = await res.json().catch(() => ({}));
+            document.getElementById("remap").textContent =
+              `Switch failed: ${error ?? res.status}`;
+            e.target.value = currentRouter;
+            return;
+          }
+
+          clearClientState();
+          await refreshAll();
+          document.getElementById("remap").innerHTML =
+            `Switched to <strong>${esc(name)}</strong>. Cached entries were cleared, so both routers start cold.`;
+        });
+
+      async function doReset(scope) {
+        const res = await fetch("/api/reset", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ scope }),
+        });
+        if (!res.ok) {
+          const { error } = await res.json().catch(() => ({}));
+          document.getElementById("remap").textContent =
+            `Reset failed: ${error ?? res.status}`;
+          return;
+        }
+        clearClientState();
+        await refreshAll();
+        document.getElementById("remap").textContent =
+          scope === "all"
+            ? "Cluster reset — all nodes removed."
+            : "Cached entries cleared; nodes left in place.";
+      }
+
+      document
+        .getElementById("reset-data")
+        .addEventListener("click", () => doReset("data"));
+      document
+        .getElementById("reset-all")
+        .addEventListener("click", () => doReset("all"));
+
+      document
+        .getElementById("history-toggle")
+        .addEventListener("click", (e) => {
+          showHistory = !showHistory;
+          e.target.textContent = showHistory ? "Hide history" : "Show history";
+          renderViz();
+        });
+
+      document
+        .getElementById("add-node-form")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const id = document.getElementById("node-id").value.trim();
+          const capacity = Number(
+            document.getElementById("node-capacity").value,
+          );
+          const policy = document.getElementById("node-policy").value;
+          const vnodesRaw = document.getElementById("node-vnodes").value.trim();
+          const body = { "node-id": id, capacity, policy };
+          // Omitted entirely when blank, so the ring applies its own default.
+          if (vnodesRaw !== "") body["virtual_nodes"] = Number(vnodesRaw);
+
+          await topologyChange(async () => {
+            const res = await fetch("/api/nodes", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            });
+            if (!res.ok) {
+              const { error } = await res.json();
+              document.getElementById("status").textContent =
+                `Add failed: ${error}`;
+              return false;
+            }
+            e.target.reset();
+            return true;
+          });
+        });
+
+      document
+        .getElementById("cache-form")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const action = e.submitter?.dataset.action ?? "get";
+          const key = document.getElementById("cache-key").value.trim();
+          const value = document.getElementById("cache-value").value;
+          const result = document.getElementById("cache-result");
+          result.className = "result";
+          if (!key) return;
+
+          let location = null;
+
+          if (action === "get") {
+            const res = await fetch(`/api/cache/${encodeURIComponent(key)}`);
+            const body = await res.json();
+            result.textContent = res.ok
+              ? `${key} → ${body.value}`
+              : (body.error ?? `Error ${res.status}`);
+            result.classList.add(res.ok ? "ok" : "err");
+            if (body.hash)
+              location = { hash: body.hash, node: nodeForHash(body.hash) };
+          } else {
+            const res = await fetch(`/api/cache/${encodeURIComponent(key)}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ value }),
+            });
+            const body = await res.json().catch(() => ({}));
+            if (res.ok) {
+              result.textContent = `Saved ${key}.`;
+              result.classList.add("ok");
+              if (body.hash)
+                location = { hash: body.hash, node: nodeForHash(body.hash) };
+            } else {
+              result.textContent = body.error ?? `Error ${res.status}`;
+              result.classList.add("err");
+            }
+          }
+
+          if (location) {
+            pushHistory(key, location.hash, location.node);
+            renderViz();
+            flashAt(location.hash, location.node);
+          }
+          refreshMeters(true);
+        });
+
+      refreshAll();
+
+      // --- Traffic simulation -----------------------------------------------
+      // A small pool of keys gets warmed up by occasional puts, so gets against
+      // them mostly hit; gets against a freshly-generated key always miss, since
+      // nothing ever writes them. That mix is what makes the hit rate move.
+      // --- Realistic Traffic Simulation -----------------------------------------
+
+      const KEY_UNIVERSE_SIZE = 500; // Total universe of items (e.g., item:1 to item:500)
+      const ZIPF_EXPONENT = 1.1; // Controls skew: >1 means steep power law (a few hot keys)
+      const WRITE_PROBABILITY = 0.05; // 5% explicit background mutations/writes, 95% reads
+      const SIM_DELAY_MS = 10; // Rate throttle so the browser loop doesn't choke
+      const HIT_WINDOW = 200; // Reads the hit rate is computed over
+
+      let simRunning = false;
+      const simStats = { total: 0, hits: 0, misses: 0, puts: 0 };
+
+      // Outcomes of the most recent reads, oldest dropped first. The hit rate is
+      // computed over these alone, so it tracks current behaviour rather than
+      // converging on a lifetime average.
+      const readWindow = []; // booleans, true = hit
+
+      function recordRead(isHit) {
+        readWindow.push(isHit);
+        if (readWindow.length > HIT_WINDOW) readWindow.shift();
+      }
+
+      // Precompute cumulative probabilities for Zipf distribution: P(k) ~ 1 / k^s
+      const zipfWeights = (() => {
+        const weights = [];
+        let sum = 0;
+        for (let i = 1; i <= KEY_UNIVERSE_SIZE; i++) {
+          sum += 1 / Math.pow(i, ZIPF_EXPONENT);
+          weights.push(sum);
+        }
+        return weights.map((w) => w / sum); // Normalize to [0, 1]
+      })();
+
+      function pickZipfKey() {
+        const r = Math.random();
+        // Binary search for rank
+        let lo = 0,
+          hi = zipfWeights.length - 1;
+        while (lo < hi) {
+          const mid = (lo + hi) >> 1;
+          if (r < zipfWeights[mid]) hi = mid;
+          else lo = mid + 1;
+        }
+        return `item:${lo + 1}`;
+      }
+
+      function renderSimStats() {
+        const set = (id, v) => (document.getElementById(id).textContent = v);
+        set("stat-reads", simStats.total.toLocaleString());
+        set("stat-hits", simStats.hits.toLocaleString());
+        set("stat-misses", simStats.misses.toLocaleString());
+        set("stat-writes", simStats.puts.toLocaleString());
+
+        if (!readWindow.length) {
+          set("stat-hitrate", "—");
+          set("stat-hitrate-sub", "No lookups yet");
+          return;
+        }
+        const windowHits = readWindow.reduce((n, hit) => n + (hit ? 1 : 0), 0);
+        const rate = Math.round((windowHits / readWindow.length) * 100);
+        set("stat-hitrate", `${rate}%`);
+        // Reports the window's own counts, so the figures match the percentage.
+        set(
+          "stat-hitrate-sub",
+          `${windowHits} of the last ${readWindow.length} reads served from cache`,
+        );
+      }
+
+      async function simulateOnce() {
+        const key = pickZipfKey();
+        const isExplicitPut = Math.random() < WRITE_PROBABILITY;
+
+        let location = null;
+
+        if (isExplicitPut) {
+          // 1. Direct write/invalidation (e.g., an item update)
+          const res = await fetch(`/api/cache/${encodeURIComponent(key)}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ value: String(Date.now()) }),
+          });
+          const body = await res.json().catch(() => ({}));
+          simStats.puts++;
+          if (body.hash)
+            location = { hash: body.hash, node: nodeForHash(body.hash) };
+        } else {
+          // 2. Cache-Aside GET
+          const res = await fetch(`/api/cache/${encodeURIComponent(key)}`);
+          simStats.total++;
+
+          if (res.ok) {
+            simStats.hits++;
+            recordRead(true);
+            const body = await res.json().catch(() => ({}));
+            if (body.hash)
+              location = { hash: body.hash, node: nodeForHash(body.hash) };
+          } else {
+            // Cache Miss: Emulate origin fetch + backfill PUT
+            simStats.misses++;
+            recordRead(false);
+            const putRes = await fetch(
+              `/api/cache/${encodeURIComponent(key)}`,
+              {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ value: `origin-val-${key}` }),
+              },
+            );
+            const putBody = await putRes.json().catch(() => ({}));
+            if (putBody.hash)
+              location = {
+                hash: putBody.hash,
+                node: nodeForHash(putBody.hash),
+              };
+          }
+        }
+
+        renderSimStats();
+
+        if (location) {
+          pushHistory(key, location.hash, location.node);
+          renderViz();
+          flashAt(location.hash, location.node);
+        }
+        refreshMeters();
+      }
+
+      async function simulationLoop() {
+        while (simRunning) {
+          await simulateOnce();
+          await new Promise((resolve) => setTimeout(resolve, SIM_DELAY_MS));
+        }
+      }
+
+      document.getElementById("sim-toggle").addEventListener("click", (e) => {
+        simRunning = !simRunning;
+        e.target.textContent = simRunning
+          ? "Stop simulating traffic"
+          : "Start simulating traffic";
+        if (simRunning) simulationLoop();
+      });
+    </script>
+  </body>
+</html>
