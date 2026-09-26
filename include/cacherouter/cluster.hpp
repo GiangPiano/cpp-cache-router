@@ -39,7 +39,6 @@ public:
 
     void put(const std::string& key, std::string value);
     std::optional<std::string> get(const std::string& key);
-    [[nodiscard]] uint64_t get_hash(const std::string& key) const;
 
     void set_event_handler(std::function<void(Event)> handler);
 

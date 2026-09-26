@@ -10,6 +10,7 @@
 namespace cacherouter {
 
 enum class CacheEventType : uint8_t { Hit, Miss, Insert, Evict, Update };
+
 struct CacheEvent {
     CacheEventType type;
     std::string key;

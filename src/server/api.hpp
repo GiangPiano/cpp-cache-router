@@ -12,6 +12,7 @@
 #include "cacherouter/node.hpp"
 #include "cacherouter/router/consistent_router.hpp"
 #include "cacherouter/router/router_factory.hpp"
+#include "cacherouter/utils/hash.hpp"
 #include "nlohmann/json_fwd.hpp"
 
 using namespace httplib;
@@ -77,13 +78,13 @@ inline void handle_get_key(const Request& req, Response& res, cacherouter::Cache
     if (auto value = cluster.get(key)) {
         res.status = 200;
         res.set_content(
-            json{{"key", key}, {"value", *value}, {"hash", std::to_string(cluster.get_hash(key))}}
+            json{{"key", key}, {"value", *value}, {"hash", std::to_string(cacherouter::hash(key))}}
                 .dump(),
             "application/json");
     } else {
         res.status = 404;
         res.set_content(
-            json{{"error", "not found"}, {"hash", std::to_string(cluster.get_hash(key))}}.dump(),
+            json{{"error", "not found"}, {"hash", std::to_string(cacherouter::hash(key))}}.dump(),
             "application/json");
     }
 }
@@ -106,7 +107,7 @@ inline void handle_put_key(const Request& req, Response& res, cacherouter::Cache
 
         res.status = 200;
         res.set_content(
-            json{{"key", key}, {"value", value}, {"hash", std::to_string(cluster.get_hash(key))}}
+            json{{"key", key}, {"value", value}, {"hash", std::to_string(cacherouter::hash(key))}}
                 .dump(),
             "application/json");
     } catch (const std::exception& e) {

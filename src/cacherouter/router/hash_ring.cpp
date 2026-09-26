@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "../utils/hash.hpp"
+#include "cacherouter/utils/hash.hpp"
 
 namespace cacherouter::router {
 

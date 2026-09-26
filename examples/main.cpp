@@ -1,7 +1,3 @@
-// Demo / smoke test executable for the cache router project.
-// Not a unit test suite, just a walkthrough with printed input and output
-// so the pieces can be sanity checked by eye.
-
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -13,6 +9,7 @@
 #include "cacherouter/cache.hpp"
 #include "cacherouter/cluster.hpp"
 #include "cacherouter/events.hpp"
+#include "cacherouter/node.hpp"
 #include "cacherouter/policy/policy_factory.hpp"
 #include "cacherouter/router/consistent_router.hpp"
 #include "cacherouter/router/simple_router.hpp"
@@ -125,8 +122,8 @@ void demo_cache_cluster() {
             e.event);
     });
 
-    cluster.add_node({"node-A", 2, "lru"});
-    cluster.add_node({"node-B", 2, "lru"});
+    cluster.add_node(cr::Node{.id = "node-A", .capacity = 2, .policy_name = "lru"});
+    cluster.add_node(cr::Node{.id = "node-B", .capacity = 2, .policy_name = "lru"});
 
     std::cout << "put(\"alpha\", \"1\")\n";
     cluster.put("alpha", "1");

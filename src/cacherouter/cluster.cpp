@@ -17,7 +17,7 @@
 #include "cacherouter/node.hpp"
 #include "cacherouter/policy/policy_factory.hpp"
 #include "cacherouter/router/router.hpp"
-#include "utils/hash.hpp"
+#include "cacherouter/utils/hash.hpp"
 
 namespace cacherouter {
 
@@ -113,8 +113,6 @@ std::optional<std::string> CacheCluster::get(const std::string& key) {
     NodeId id = router_->route(key);
     return nodes_.at(id).second->get(key);
 }
-
-[[nodiscard]] uint64_t CacheCluster::get_hash(const std::string& key) const { return hash(key); }
 
 void CacheCluster::set_event_handler(std::function<void(Event)> handler) {
     on_event_ = std::move(handler);

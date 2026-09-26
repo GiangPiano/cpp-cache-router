@@ -5,6 +5,7 @@ add_library(cacherouter_core
   router/simple_router.cpp
   router/consistent_router.cpp
   router/hash_ring.cpp
+  utils/hash.cpp
 )
 add_library(cacherouter::core ALIAS cacherouter_core)
 

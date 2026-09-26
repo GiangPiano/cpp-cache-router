@@ -7,7 +7,7 @@
 #include <tuple>
 #include <vector>
 
-#include "../utils/hash.hpp"
+#include "cacherouter/utils/hash.hpp"
 #include "cacherouter/node.hpp"
 
 namespace cacherouter::router {
