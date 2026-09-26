@@ -1,24 +1,37 @@
 #include <httplib.h>
 
+#include <exception>
 #include <iostream>
-#include <memory>
-#include <utility>
+#include <nlohmann/json.hpp>
+#include <string>
 
 #include "api.hpp"
 #include "cacherouter/cluster.hpp"
-#include "cacherouter/router/consistent_router.hpp"
+#include "cacherouter/router/router_factory.hpp"
+#include "nlohmann/json_fwd.hpp"
 
 int main() {
-    auto router = std::make_unique<cacherouter::router::ConsistentRouter>();
-    auto* router_ptr = router.get();
-    auto cluster = cacherouter::CacheCluster(std::move(router));
+    auto cluster = cacherouter::CacheCluster(cacherouter::router::make_router("consistent"));
 
     cluster.add_node({.id = "node-A", .capacity = 100, .policy_name = "lru"});
     cluster.add_node({.id = "node-B", .capacity = 100, .policy_name = "lru"});
 
     httplib::Server server;
     register_cluster(server, cluster);
-    register_router(server, *router_ptr);
+    register_router(server, cluster);
+
+    server.set_exception_handler(
+        [](const httplib::Request&, httplib::Response& res, const std::exception_ptr& ep) {
+            auto message = std::string{"internal error"};
+            try {
+                std::rethrow_exception(ep);
+            } catch (const std::exception& e) {
+                message = e.what();
+            } catch (...) {
+            }
+            res.status = 500;
+            res.set_content(nlohmann::json{{"error", message}}.dump(), "application/json");
+        });
 
     server.set_mount_point("/", "./web");
 

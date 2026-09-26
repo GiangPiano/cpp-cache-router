@@ -1,5 +1,6 @@
 #include "cacherouter/cluster.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -7,6 +8,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -31,23 +33,71 @@ CacheCluster::CacheCluster(std::unique_ptr<router::Router> router) : router_(std
     return nodes;
 };
 
-void CacheCluster::add_node(const cacherouter::Node& node) {
-    const auto& [id, capacity, policy_name, virtual_nodes] = node;
-    if (nodes_.contains(id)) return;
-    auto cache_ptr =
-        std::make_unique<Cache<std::string, std::string>>(capacity, make_policy(policy_name));
-    cache_ptr->set_event_handler([this, id](CacheEvent e) {
-        emit({.timestamp = std::chrono::system_clock::now(), .event = e});
-    });
+[[nodiscard]] std::vector<NodeStatus> CacheCluster::node_status() const {
+    std::vector<NodeStatus> status;
+    status.reserve(nodes_.size());
+    for (const auto& [id, entry] : nodes_) {
+        std::ignore = id;
+        status.push_back({.node = entry.first, .used = entry.second->size()});
+    }
+    return status;
+}
 
-    nodes_.emplace(id, std::make_pair(node, std::move(cache_ptr)));
-    router_->add_node(id, virtual_nodes);
+
+std::unique_ptr<Cache<std::string, std::string>> CacheCluster::make_cache(const Node& node) {
+    auto cache_ptr = std::make_unique<Cache<std::string, std::string>>(
+        node.capacity, make_policy(node.policy_name));
+    cache_ptr->set_event_handler(
+        [this](CacheEvent e) { emit({.timestamp = Clock::now(), .event = e}); });
+    return cache_ptr;
+}
+
+
+void CacheCluster::add_node(const cacherouter::Node& node) {
+    if (nodes_.contains(node.id)) return;
+
+    nodes_.emplace(node.id, std::make_pair(node, make_cache(node)));
+    router_->add_node(node.id, node.virtual_nodes);
 }
 
 
 void CacheCluster::remove_node(const NodeId& id) {
     nodes_.erase(id);
     router_->remove_node(id);
+}
+
+
+void CacheCluster::set_router(std::unique_ptr<router::Router> router) {
+    router_ = std::move(router);
+
+    // Migrating the current cache nodes into the new router
+    // The nodes content however are not migrated, meaning that all cached data are wiped
+    std::vector<NodeId> ids;
+    ids.reserve(nodes_.size());
+    for (const auto& [id, entry] : nodes_) ids.push_back(id);
+    std::ranges::sort(ids);
+
+    for (const auto& id : ids) router_->add_node(id, nodes_.at(id).first.virtual_nodes);
+}
+
+
+[[nodiscard]] const router::Router& CacheCluster::router() const { return *router_; }
+
+
+void CacheCluster::clear_data() {
+    for (auto& [id, entry] : nodes_) {
+        std::ignore = id;
+        entry.second = make_cache(entry.first);
+    }
+}
+
+
+void CacheCluster::reset() {
+    for (const auto& [id, entry] : nodes_) {
+        std::ignore = entry;
+        router_->remove_node(id);
+    }
+    nodes_.clear();
 }
 
 

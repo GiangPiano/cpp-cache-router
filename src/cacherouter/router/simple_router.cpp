@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -27,6 +28,9 @@ void SimpleRouter::remove_node(const NodeId& node) {
 }
 
 [[nodiscard]] NodeId SimpleRouter::route(const std::string& key) const {
+    // Guarded rather than left to `% 0`: resetting the cluster makes an empty
+    // router reachable, and ConsistentRouter::route reports the same way.
+    if (nodes_.empty()) throw std::runtime_error("No nodes available.");
     return nodes_.at(hash(key) % nodes_.size());
 }
 

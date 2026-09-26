@@ -13,20 +13,17 @@ namespace cacherouter::router {
 
 HashRing::HashRing(int virtual_nodes) : vnodes_(virtual_nodes) {}
 
-void HashRing::add_node(const std::string& node, std::optional<int> virtual_nodes) {
+void HashRing::add_node(const std::string& node, int virtual_nodes) {
     if (ring_.contains(hash(node))) return;
+    const int replicas = virtual_nodes > 0 ? virtual_nodes : vnodes_;
     ring_.emplace(hash(node), node);
-    for (int i = 0; i < virtual_nodes.value_or(vnodes_); i++) {
+    for (int i = 0; i < replicas; i++) {
         ring_.emplace(hash(node + ":" + std::to_string(i)), node);
     }
 }
 
 void HashRing::remove_node(const std::string& node) {
-    if (!ring_.contains(hash(node))) return;
-    ring_.erase(hash(node));
-    for (int i = 0; i < vnodes_; i++) {
-        ring_.erase(hash(node + ":" + std::to_string(i)));
-    }
+    std::erase_if(ring_, [&node](const auto& entry) { return entry.second == node; });
 }
 
 [[nodiscard]] std::optional<std::string> HashRing::find_node(const std::string& key) const {
@@ -41,6 +38,6 @@ void HashRing::remove_node(const std::string& node) {
     return {unique_nodes.begin(), unique_nodes.end()};
 };
 
-[[nodiscard]] const std::map<uint64_t, std::string>& HashRing::get_ring() const { return ring_; }
+[[nodiscard]] const Ring& HashRing::get_ring() const { return ring_; }
 
 }  // namespace cacherouter::router

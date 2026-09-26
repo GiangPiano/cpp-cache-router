@@ -21,7 +21,7 @@ public:
     [[nodiscard]] std::vector<NodeId> nodes() const override;
     [[nodiscard]] std::string name() const override;
 
-    [[nodiscard]] const HashRing& ring() const;
+    [[nodiscard]] const Ring& ring() const;
 
 private:
     HashRing ring_;

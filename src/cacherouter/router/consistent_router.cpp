@@ -24,6 +24,6 @@ void ConsistentRouter::remove_node(const NodeId& node) { ring_.remove_node(node)
 
 [[nodiscard]] std::string ConsistentRouter::name() const { return "consistent"; }
 [[nodiscard]] std::vector<NodeId> ConsistentRouter::nodes() const { return ring_.nodes(); }
-[[nodiscard]] const HashRing& ConsistentRouter::ring() const { return ring_; }
+[[nodiscard]] const Ring& ConsistentRouter::ring() const { return ring_.get_ring(); }
 
 }  // namespace cacherouter::router
