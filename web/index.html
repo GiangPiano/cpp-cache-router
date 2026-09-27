@@ -453,6 +453,9 @@
         <button id="reset-all" class="secondary" type="button">
           Remove all nodes
         </button>
+        <button id="reset-default" class="secondary" type="button">
+          Reset to default
+        </button>
       </div>
 
       <div class="layout">
@@ -505,24 +508,6 @@
             </form>
             <ul class="nodes" id="node-list"></ul>
           </section>
-
-          <section>
-            <h2>Look up a key</h2>
-            <form id="cache-form" class="row">
-              <input type="text" id="cache-key" placeholder="key" required />
-              <input
-                type="text"
-                id="cache-value"
-                placeholder="value (for put)"
-              />
-              <button type="submit" data-action="get">Get</button>
-              <button type="submit" data-action="put" class="secondary">
-                Put
-              </button>
-            </form>
-            <p class="result" id="cache-result"></p>
-          </section>
-
         </div>
       </div>
 
@@ -537,7 +522,9 @@
               once the working set outgrows a node's capacity.
             </p>
           </div>
-          <button id="sim-toggle" type="button">Start simulating traffic</button>
+          <button id="sim-toggle" type="button">
+            Start simulating traffic
+          </button>
         </div>
 
         <div class="stats-grid">
@@ -565,6 +552,17 @@
             </div>
           </div>
         </div>
+      </section>
+
+      <section>
+        <h2>Look up a key</h2>
+        <form id="cache-form" class="row">
+          <input type="text" id="cache-key" placeholder="key" required />
+          <input type="text" id="cache-value" placeholder="value (for put)" />
+          <button type="submit" data-action="get">Get</button>
+          <button type="submit" data-action="put" class="secondary">Put</button>
+        </form>
+        <p class="result" id="cache-result"></p>
       </section>
     </main>
 
@@ -719,13 +717,6 @@
             `<span class="swatch" style="background:${color}"></span>` +
             `<span class="mono">${esc(node)}</span>` +
             `<span class="bucket-index mono">hash % ${buckets.length} = ${i}</span>` +
-            `</div>` +
-            `<div class="chips">` +
-            (keys.length
-              ? keys
-                  .map((k) => `<span class="chip mono">${esc(k.key)}</span>`)
-                  .join("")
-              : `<span class="empty">no keys yet</span>`) +
             `</div>`;
           wrap.appendChild(div);
         });
@@ -837,7 +828,9 @@
       function applyUsage(id, used, capacity) {
         const card = nodeCards.get(id);
         if (!card) return;
-        const pct = capacity ? Math.min(100, Math.round((used / capacity) * 100)) : 0;
+        const pct = capacity
+          ? Math.min(100, Math.round((used / capacity) * 100))
+          : 0;
         card.meter.className = `meter ${meterClass(pct)}`;
         card.fill.style.width = `${pct}%`;
         card.used.textContent = `${used} of ${capacity} entries`;
@@ -981,10 +974,16 @@
         }
         clearClientState();
         await refreshAll();
+
+        const outcome = {
+          data: "Cached entries cleared; nodes left in place.",
+          all: "All nodes removed.",
+          // nodeIds comes from the refresh above, so the count reflects whatever
+          // the server's default actually is rather than a hardcoded guess.
+          default: `Reset to the default cluster — ${nodeIds.length} nodes, cold.`,
+        };
         document.getElementById("remap").textContent =
-          scope === "all"
-            ? "Cluster reset — all nodes removed."
-            : "Cached entries cleared; nodes left in place.";
+          outcome[scope] ?? `Reset (${scope}) applied.`;
       }
 
       document
@@ -993,6 +992,9 @@
       document
         .getElementById("reset-all")
         .addEventListener("click", () => doReset("all"));
+      document
+        .getElementById("reset-default")
+        .addEventListener("click", () => doReset("default"));
 
       document
         .getElementById("history-toggle")

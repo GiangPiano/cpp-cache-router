@@ -293,7 +293,8 @@ TEST(CacheCluster, ReplayIntoTheNewRouterIsOrderStable) {
 
 TEST(CacheCluster, SwitchingRoutersPreservesPerNodeVirtualNodeCounts) {
     auto cluster = make_cluster("consistent");
-    cluster.add_node(Node{.id = "small", .capacity = 10, .policy_name = "lru", .virtual_nodes = 10});
+    cluster.add_node(
+        Node{.id = "small", .capacity = 10, .policy_name = "lru", .virtual_nodes = 10});
     cluster.add_node(Node{.id = "big", .capacity = 10, .policy_name = "lru", .virtual_nodes = 300});
 
     cluster.set_router(cacherouter::router::make_router("simple"));
@@ -370,7 +371,7 @@ TEST(CacheCluster, ResetRemovesEveryNode) {
     cluster.add_node(node("node-B"));
     cluster.put("alpha", "one");
 
-    cluster.reset();
+    cluster.clear_nodes();
 
     EXPECT_TRUE(cluster.list_nodes().empty());
     EXPECT_TRUE(cluster.node_status().empty());
@@ -382,7 +383,7 @@ TEST(CacheCluster, AClusterIsUsableAgainAfterReset) {
     cluster.add_node(node("node-A"));
     cluster.put("alpha", "one");
 
-    cluster.reset();
+    cluster.clear_nodes();
     cluster.add_node(node("node-B"));
     cluster.put("beta", "two");
 

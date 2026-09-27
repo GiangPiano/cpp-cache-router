@@ -193,10 +193,13 @@ inline void handle_reset(const Request& req, Response& res, cacherouter::CacheCl
     if (scope == "data") {
         cluster.clear_data();
     } else if (scope == "all") {
-        cluster.reset();
+        cluster.clear_nodes();
+    } else if (scope == "default") {
+        cluster.clear_nodes();
+        cluster.reset_to_default();
     } else {
         res.status = 400;
-        res.set_content(json{{"error", R"(scope must be "data" or "all")"}}.dump(),
+        res.set_content(json{{"error", R"(scope must be "data" or "all" or "default")"}}.dump(),
                         "application/json");
         return;
     }

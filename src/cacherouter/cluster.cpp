@@ -99,7 +99,7 @@ void CacheCluster::clear_data() {
 }
 
 
-void CacheCluster::reset() {
+void CacheCluster::clear_nodes() {
     for (const auto& [id, entry] : nodes_) {
         std::ignore = entry;
         router_->remove_node(id);
@@ -107,6 +107,21 @@ void CacheCluster::reset() {
     nodes_.clear();
 }
 
+void CacheCluster::reset_to_default() {
+    clear_nodes();
+
+    // default configuration
+    add_node({.id = "node-A", .capacity = 50, .policy_name = "lru"});
+    add_node({.id = "node-B", .capacity = 50, .policy_name = "lru"});
+    add_node({.id = "node-C", .capacity = 50, .policy_name = "lru"});
+    add_node({.id = "node-D", .capacity = 50, .policy_name = "lru"});
+    add_node({.id = "node-E", .capacity = 50, .policy_name = "lru"});
+    add_node({.id = "node-F", .capacity = 50, .policy_name = "lru"});
+    add_node({.id = "node-G", .capacity = 50, .policy_name = "lru"});
+    add_node({.id = "node-H", .capacity = 50, .policy_name = "lru"});
+    add_node({.id = "node-I", .capacity = 50, .policy_name = "lru"});
+    add_node({.id = "node-J", .capacity = 50, .policy_name = "lru"});
+}
 
 void CacheCluster::put(const std::string& key, std::string value) {
     NodeId id = router_->route(key);

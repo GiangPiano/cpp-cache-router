@@ -35,7 +35,8 @@ public:
     [[nodiscard]] const router::Router& router() const;
 
     void clear_data();
-    void reset();
+    void clear_nodes();
+    void reset_to_default();
 
     void put(const std::string& key, std::string value);
     std::optional<std::string> get(const std::string& key);

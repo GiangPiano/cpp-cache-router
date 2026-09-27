@@ -67,9 +67,8 @@ int main(int argc, char** argv) {
     // Declared before the server so it outlives the handler borrowing it.
     cacherouter::logging::EventLog event_log{std::clog, config.debug_level};
     cluster.set_event_handler([&event_log](const cacherouter::Event& e) { event_log(e); });
-
-    cluster.add_node({.id = "node-A", .capacity = 100, .policy_name = "lru"});
-    cluster.add_node({.id = "node-B", .capacity = 100, .policy_name = "lru"});
+    cluster.clear_nodes();
+    cluster.reset_to_default();
 
     httplib::Server server;
     register_cluster(server, cluster);
