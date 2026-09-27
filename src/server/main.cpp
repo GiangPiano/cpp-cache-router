@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
               << cacherouter::logging::level_to_name(config.debug_level)
               << " --debug=trace|debug|info|off\n"
               << std::flush;
-    server.listen("0.0.0.0", 8082);
+    server.listen("0.0.0.0", config.port);
 
     return 0;
 }
