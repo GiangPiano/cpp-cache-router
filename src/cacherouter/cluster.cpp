@@ -29,17 +29,21 @@ CacheCluster::CacheCluster(std::unique_ptr<router::Router> router) : router_(std
 [[nodiscard]] std::vector<Node> CacheCluster::list_nodes() const {
     std::vector<Node> nodes;
     nodes.reserve(nodes_.size());
+
     for (const auto& [k, v] : nodes_) nodes.push_back(v.first);
+
     return nodes;
 };
 
 [[nodiscard]] std::vector<NodeStatus> CacheCluster::node_status() const {
     std::vector<NodeStatus> status;
     status.reserve(nodes_.size());
+
     for (const auto& [id, entry] : nodes_) {
         std::ignore = id;
         status.push_back({.node = entry.first, .used = entry.second->size()});
     }
+
     return status;
 }
 
@@ -47,8 +51,11 @@ CacheCluster::CacheCluster(std::unique_ptr<router::Router> router) : router_(std
 std::unique_ptr<Cache<std::string, std::string>> CacheCluster::make_cache(const Node& node) {
     auto cache_ptr = std::make_unique<Cache<std::string, std::string>>(
         node.capacity, make_policy(node.policy_name));
-    cache_ptr->set_event_handler(
-        [this](CacheEvent e) { emit({.timestamp = Clock::now(), .event = e}); });
+
+    cache_ptr->set_event_handler([this, node](CacheEvent e) {
+        e.node_id = node.id;
+        emit({.timestamp = Clock::now(), .event = std::move(e)});
+    });
     return cache_ptr;
 }
 

@@ -13,6 +13,7 @@ add_executable(cacherouter_tests
   test_simple_router.cpp
   test_consistent_router.cpp
   test_cluster.cpp
+  test_event_log.cpp
 )
 
 target_link_libraries(cacherouter_tests PRIVATE

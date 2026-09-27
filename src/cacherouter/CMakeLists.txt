@@ -6,6 +6,7 @@ add_library(cacherouter_core
   router/consistent_router.cpp
   router/hash_ring.cpp
   utils/hash.cpp
+  logging/event_log.cpp
 )
 add_library(cacherouter::core ALIAS cacherouter_core)
 

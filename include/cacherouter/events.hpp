@@ -14,7 +14,7 @@ enum class CacheEventType : uint8_t { Hit, Miss, Insert, Evict, Update };
 struct CacheEvent {
     CacheEventType type;
     std::string key;
-    // NodeId emitter;
+    NodeId node_id;
 };
 
 struct RouterEvent {
