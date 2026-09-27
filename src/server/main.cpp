@@ -15,16 +15,6 @@
 #include "cacherouter/router/router_factory.hpp"
 #include "nlohmann/json_fwd.hpp"
 
-cacherouter::logging::Level log_level_from_env() {
-    const char* raw = std::getenv("CACHEROUTER_LOG_LEVEL");
-    if (raw == nullptr) return cacherouter::logging::Level::Info;
-
-    if (const auto parsed = cacherouter::logging::name_to_level(raw)) return *parsed;
-
-    std::cerr << "Ignoring unrecognised CACHEROUTER_LOG_LEVEL=\"" << raw << "\"; using info.\n";
-    return cacherouter::logging::Level::Info;
-}
-
 struct Config {
     cacherouter::logging::Level debug_level = cacherouter::logging::Level::Off;
     int port = 8080;
