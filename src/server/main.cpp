@@ -4,6 +4,7 @@
 #include <exception>
 #include <iostream>
 #include <nlohmann/json.hpp>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -25,38 +26,47 @@ cacherouter::logging::Level log_level_from_env() {
 }
 
 struct Config {
-    bool run_test = false;
-    bool print_tokens = false;
-    bool print_parse_tree = false;
-    bool has_input = false;
-    std::string input;
+    cacherouter::logging::Level debug_level = cacherouter::logging::Level::Off;
+    int port = 8080;
 };
 
 [[nodiscard]] Config parse_argument(const std::vector<std::string>& args) {
     Config config;
     for (const std::string& arg : args) {
-        if (arg == "--test")
-            config.run_test = true;
-        else if (arg == "--tokens")
-            config.print_tokens = true;
-        else if (arg == "--parse-tree")
-            config.print_parse_tree = true;
-        else {
-            config.has_input = true;
-            config.input = arg;
+        if (auto pos = arg.find('='); pos != std::string::npos) {
+            if (arg.starts_with("--port"))
+                config.port = std::stoi(arg.substr(pos + 1));
+            else if (arg.starts_with("--debug")) {
+                std::string l = arg.substr(pos + 1);
+                if (auto level = cacherouter::logging::name_to_level(l))
+                    config.debug_level = level.value();
+                else
+                    throw std::invalid_argument("Unknown debug level: " + l);
+            }
         }
     }
     return config;
 }
 
 int main(int argc, char** argv) {
+    std::vector<std::string> args;
+    args.reserve(argc - 1);
+    for (int i = 1; i < argc; i++) args.emplace_back(argv[i]);
+
+    Config config;
+    try {
+        config = parse_argument(args);
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << '\n';
+        return 1;
+    }
+
     auto cluster = cacherouter::CacheCluster(cacherouter::router::make_router("consistent"));
 
     // Logs go to stderr, leaving stdout for whatever the process itself prints.
     // Declared before the server so it outlives the handler borrowing it.
-    const auto level = log_level_from_env();
-    cacherouter::logging::EventLog event_log{std::clog, level};
-    cluster.set_event_handler([&event_log](cacherouter::Event e) { event_log(e); });
+    cacherouter::logging::EventLog event_log{std::clog, config.debug_level};
+    cluster.set_event_handler([&event_log](const cacherouter::Event& e) { event_log(e); });
 
     cluster.add_node({.id = "node-A", .capacity = 100, .policy_name = "lru"});
     cluster.add_node({.id = "node-B", .capacity = 100, .policy_name = "lru"});
@@ -72,7 +82,6 @@ int main(int argc, char** argv) {
                 std::rethrow_exception(ep);
             } catch (const std::exception& e) {
                 message = e.what();
-            } catch (...) {
             }
             res.status = 500;
             res.set_content(nlohmann::json{{"error", message}}.dump(), "application/json");
@@ -80,9 +89,10 @@ int main(int argc, char** argv) {
 
     server.set_mount_point("/", "./web");
 
-    std::cout << "Server listening on port http://localhost:8082\n";
-    std::cout << "Logging cluster events at " << cacherouter::logging::level_to_name(level)
-              << " (set CACHEROUTER_LOG_LEVEL=trace|debug|info|off)\n"
+    std::cout << "Server listening on port http://localhost:" << config.port << '\n';
+    std::cout << "Logging cluster events at "
+              << cacherouter::logging::level_to_name(config.debug_level)
+              << " --debug=trace|debug|info|off\n"
               << std::flush;
     server.listen("0.0.0.0", 8082);
 
