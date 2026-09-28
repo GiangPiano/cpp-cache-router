@@ -74,7 +74,6 @@ event log.
 | GET    | `/api/router`     | Active router, available routers, and topology |
 | POST   | `/api/router`     | Switch router                                  |
 | POST   | `/api/reset`      | Clear data, clear nodes, or restore defaults   |
-| GET    | `/api/ring`       | Ring points, consistent router only            |
 
 Add a node:
 

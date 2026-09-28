@@ -211,24 +211,6 @@ inline void handle_reset(const Request& req, Response& res, cacherouter::CacheCl
 }
 
 
-inline void handle_get_ring(const Request& req, Response& res, cacherouter::CacheCluster& cluster) {
-    std::ignore = req;
-
-    const auto topology = router_topology(cluster);
-    if (!topology.contains("ring")) {
-        res.status = 409;
-        res.set_content(
-            json{{"error", "active router has no hash ring"}, {"router", cluster.router().name()}}
-                .dump(),
-            "application/json");
-        return;
-    }
-
-    res.status = 200;
-    res.set_content(topology.dump(), "application/json");
-}
-
-
 inline void register_cluster(Server& server, cacherouter::CacheCluster& cluster) {
     server.Get("/api/nodes", [&cluster](const Request& req, Response& res) {
         handle_list_nodes(req, res, cluster);
@@ -257,7 +239,4 @@ inline void register_router(Server& server, cacherouter::CacheCluster& cluster) 
     });
     server.Post("/api/reset",
                 [&cluster](const Request& req, Response& res) { handle_reset(req, res, cluster); });
-    server.Get("/api/ring", [&cluster](const Request& req, Response& res) {
-        handle_get_ring(req, res, cluster);
-    });
 }
