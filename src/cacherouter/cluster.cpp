@@ -26,8 +26,8 @@ using Clock = std::chrono::system_clock;
 CacheCluster::CacheCluster(std::unique_ptr<router::Router> router) : router_(std::move(router)) {}
 
 
-[[nodiscard]] std::vector<Node> CacheCluster::list_nodes() const {
-    std::vector<Node> nodes;
+[[nodiscard]] std::vector<NodeSpec> CacheCluster::list_nodes() const {
+    std::vector<NodeSpec> nodes;
     nodes.reserve(nodes_.size());
 
     for (const auto& [id, cache] : nodes_) {
@@ -38,7 +38,7 @@ CacheCluster::CacheCluster(std::unique_ptr<router::Router> router) : router_(std
     return nodes;
 };
 
-std::unique_ptr<Cache<std::string, std::string>> CacheCluster::make_cache(const Node& node) {
+std::unique_ptr<Cache<std::string, std::string>> CacheCluster::make_cache(const NodeSpec& node) {
     auto cache_ptr =
         std::make_unique<Cache<std::string, std::string>>(node, make_policy(node.policy_name));
 
@@ -49,7 +49,7 @@ std::unique_ptr<Cache<std::string, std::string>> CacheCluster::make_cache(const 
 }
 
 
-void CacheCluster::add_node(const cacherouter::Node& node) {
+void CacheCluster::add_node(const cacherouter::NodeSpec& node) {
     if (nodes_.contains(node.id)) return;
 
     // Constructed first: make_policy throws on an unknown policy, and nothing
@@ -95,7 +95,7 @@ void CacheCluster::clear_data() {
     // so the spec is copied out first.
     for (auto& [id, cache] : nodes_) {
         std::ignore = id;
-        const Node spec = cache->info();
+        const NodeSpec spec = cache->info();
         cache = make_cache(spec);
     }
 }

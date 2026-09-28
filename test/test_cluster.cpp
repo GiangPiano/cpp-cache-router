@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -14,7 +13,6 @@
 #include "cacherouter/node.hpp"
 #include "cacherouter/router/consistent_router.hpp"
 #include "cacherouter/router/router_factory.hpp"
-#include "cacherouter/router/simple_router.hpp"
 
 namespace {
 
@@ -22,16 +20,16 @@ using cacherouter::CacheCluster;
 using cacherouter::CacheEvent;
 using cacherouter::CacheEventType;
 using cacherouter::Event;
-using cacherouter::Node;
 using cacherouter::NodeId;
+using cacherouter::NodeSpec;
 using cacherouter::RouterEvent;
 
 CacheCluster make_cluster(const std::string& router = "consistent") {
     return CacheCluster{cacherouter::router::make_router(router)};
 }
 
-Node node(const NodeId& id, std::size_t capacity = 100) {
-    return Node{.id = id, .capacity = capacity, .policy_name = "lru"};
+NodeSpec node(const NodeId& id, std::size_t capacity = 100) {
+    return NodeSpec{.id = id, .capacity = capacity, .policy_name = "lru"};
 }
 
 std::vector<NodeId> sorted_ids(const CacheCluster& cluster) {
@@ -92,7 +90,7 @@ TEST(CacheCluster, RemovingANodeDeregistersItFromTheRouter) {
 
 TEST(CacheCluster, AnInvalidPolicyLeavesTheClusterUntouched) {
     auto cluster = make_cluster();
-    const Node bad{.id = "node-A", .capacity = 10, .policy_name = "nonsense"};
+    const NodeSpec bad{.id = "node-A", .capacity = 10, .policy_name = "nonsense"};
 
     EXPECT_THROW(cluster.add_node(bad), std::invalid_argument);
     // The cache is built before the node is recorded, so a throw must not half-add.
@@ -192,7 +190,7 @@ TEST(CacheCluster, ListNodesReportsCapacityAlongsideUsage) {
 // stale, and whatever a caller puts in the field on the way in is discarded.
 TEST(CacheCluster, ListedSizeTracksTheCacheAndIgnoresCallerInput) {
     auto cluster = make_cluster();
-    cluster.add_node(Node{.id = "only", .capacity = 50, .policy_name = "lru", .size = 999});
+    cluster.add_node(NodeSpec{.id = "only", .capacity = 50, .policy_name = "lru", .size = 999});
     EXPECT_EQ(cluster.list_nodes().front().size, 0u);
 
     cluster.put("a", "1");
@@ -309,8 +307,9 @@ TEST(CacheCluster, ReplayIntoTheNewRouterIsOrderStable) {
 TEST(CacheCluster, SwitchingRoutersPreservesPerNodeVirtualNodeCounts) {
     auto cluster = make_cluster("consistent");
     cluster.add_node(
-        Node{.id = "small", .capacity = 10, .policy_name = "lru", .virtual_nodes = 10});
-    cluster.add_node(Node{.id = "big", .capacity = 10, .policy_name = "lru", .virtual_nodes = 300});
+        NodeSpec{.id = "small", .capacity = 10, .policy_name = "lru", .virtual_nodes = 10});
+    cluster.add_node(
+        NodeSpec{.id = "big", .capacity = 10, .policy_name = "lru", .virtual_nodes = 300});
 
     cluster.set_router(cacherouter::router::make_router("simple"));
     cluster.set_router(cacherouter::router::make_router("consistent"));
