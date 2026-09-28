@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
     server.set_mount_point("/", "./web");
 
     std::println("Server listening on port http://localhost:{}", config.port);
-    std::println("Logging cluster events at {} --debug=trace|debug|info|off\n",
+    std::println("Logging cluster events at {} --debug=trace|debug|info|off",
                  cacherouter::logging::level_to_name(config.debug_level));
     if (!server.listen("0.0.0.0", config.port)) {
         std::println(stderr, "Error: could not bind to port {}", config.port);
