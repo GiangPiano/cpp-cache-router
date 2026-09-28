@@ -1,9 +1,11 @@
 #include <httplib.h>
 
+#include <cstdio>
 #include <cstdlib>
 #include <exception>
 #include <iostream>
 #include <nlohmann/json.hpp>
+#include <print>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -78,12 +80,13 @@ int main(int argc, char** argv) {
 
     server.set_mount_point("/", "./web");
 
-    std::cout << "Server listening on port http://localhost:" << config.port << '\n';
-    std::cout << "Logging cluster events at "
-              << cacherouter::logging::level_to_name(config.debug_level)
-              << " --debug=trace|debug|info|off\n"
-              << std::flush;
-    server.listen("0.0.0.0", config.port);
+    std::println("Server listening on port http://localhost:{}", config.port);
+    std::println("Logging cluster events at {} --debug=trace|debug|info|off\n",
+                 cacherouter::logging::level_to_name(config.debug_level));
+    if (!server.listen("0.0.0.0", config.port)) {
+        std::println(stderr, "Error: could not bind to port {}", config.port);
+        return 1;
+    };
 
     return 0;
 }
