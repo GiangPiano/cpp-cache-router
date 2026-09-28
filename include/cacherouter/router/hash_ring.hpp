@@ -16,6 +16,7 @@ public:
 
     void add_node(const std::string& node, int virtual_nodes);
     void remove_node(const std::string& node);
+    void clear();
 
     [[nodiscard]] std::optional<std::string> find_node(const std::string& key) const;
     [[nodiscard]] std::vector<std::string> nodes() const;

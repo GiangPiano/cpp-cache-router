@@ -1,13 +1,11 @@
 #pragma once
 
 #include <cstddef>
-#include <cstdint>
 #include <functional>
 #include <memory>
 #include <optional>
 #include <string>
 #include <unordered_map>
-#include <utility>
 #include <vector>
 
 #include "cacherouter/cache.hpp"
@@ -17,18 +15,12 @@
 
 namespace cacherouter {
 
-struct NodeStatus {
-    Node node;
-    std::size_t used{};
-};
-
 class CacheCluster {
 public:
     explicit CacheCluster(std::unique_ptr<router::Router> router);
 
-    [[nodiscard]] std::vector<Node> list_nodes() const;
-    [[nodiscard]] std::vector<NodeStatus> node_status() const;
-    void add_node(const Node& node);
+    [[nodiscard]] std::vector<NodeSpec> list_nodes() const;
+    void add_node(const NodeSpec& node);
     void remove_node(const NodeId& id);
 
     void set_router(std::unique_ptr<router::Router> router);
@@ -45,12 +37,11 @@ public:
 
 private:
     void emit(Event ev);
-    [[nodiscard]] std::unique_ptr<Cache<std::string, std::string>> make_cache(const Node& node);
+    [[nodiscard]] std::unique_ptr<Cache<std::string, std::string>> make_cache(const NodeSpec& node);
 
     std::unique_ptr<router::Router> router_;
     std::function<void(Event)> on_event_;
-    std::unordered_map<NodeId, std::pair<Node, std::unique_ptr<Cache<std::string, std::string>>>>
-        nodes_;
+    std::unordered_map<NodeId, std::unique_ptr<Cache<std::string, std::string>>> nodes_;
 };
 
 }  // namespace cacherouter

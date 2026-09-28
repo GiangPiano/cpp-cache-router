@@ -12,6 +12,7 @@ class SimpleRouter final : public Router {
 public:
     void add_node(const NodeId& node, int virtual_nodes = 100) override;
     void remove_node(const NodeId& node) override;
+    void clear() override;
 
     [[nodiscard]] NodeId route(const std::string& key) const override;
     [[nodiscard]] std::vector<NodeId> nodes() const override;

@@ -25,12 +25,12 @@ inline void handle_list_nodes(const Request& req, Response& res,
     std::ignore = req;
 
     auto nodes = json::array();
-    for (const auto& [node, used] : cluster.node_status()) {
+    for (const auto& node : cluster.list_nodes()) {
         nodes.push_back({{"id", node.id},
                          {"capacity", node.capacity},
                          {"policy", node.policy_name},
                          {"virtual_nodes", node.virtual_nodes},
-                         {"used", used}});
+                         {"used", node.size}});
     }
     res.status = 200;
     res.set_content(json(nodes).dump(), "application/json");
@@ -40,7 +40,7 @@ inline void handle_list_nodes(const Request& req, Response& res,
 inline void handle_add_node(const Request& req, Response& res, cacherouter::CacheCluster& cluster) {
     try {
         const auto body = json::parse(req.body);
-        cacherouter::Node node{
+        cacherouter::NodeSpec node{
             .id = body.at("node-id").get<std::string>(),
             .capacity = body.at("capacity").get<std::size_t>(),
             .policy_name = body.at("policy").get<std::string>(),
@@ -50,6 +50,7 @@ inline void handle_add_node(const Request& req, Response& res, cacherouter::Cach
             node.virtual_nodes = it->get<int>();
 
         cluster.add_node(node);
+
         res.status = 201;
     } catch (const std::exception& e) {
         res.status = 400;

@@ -605,13 +605,29 @@
       let nodeIds = []; // sorted, so a node keeps its colour across refreshes
       let currentRouter = "consistent";
       let currentTopology = { ring: [] };
+      let ringHashes = []; // currentTopology.ring as BigInt, converted once per refresh
       let history = []; // [{ key, hash, node }] — looked-up keys, deduped by key
       let showHistory = true;
-      const MAX_HISTORY = 30; // oldest dropped first, so long-running traffic sim doesn't grow forever
+      const MAX_HISTORY = 30; // oldest dropped first, so the ring doesn't fill with key dots
+
+      // Drawing and measuring want different sample sizes. The ring stays legible
+      // at ~30 key dots, but a remap percentage over 30 keys has a standard error
+      // of about 6 points, which is wider than the effect being measured. The
+      // browser cannot hash, so every hash here was harvested from a response the
+      // page already made; no extra requests are issued to build this.
+      const sampledHashes = new Map(); // key -> hash string, insertion ordered
+      const MAX_SAMPLE = 5000; // bound only; the traffic sim tops out at its 500-key universe
 
       const isConsistent = () => currentRouter === "consistent";
 
       function pushHistory(key, hash, node) {
+        // Kept across resets and router switches: a key's hash does not depend on
+        // the topology, so discarding the sample would only force a fresh warm-up.
+        if (!sampledHashes.has(key) && sampledHashes.size >= MAX_SAMPLE) {
+          sampledHashes.delete(sampledHashes.keys().next().value);
+        }
+        sampledHashes.set(key, hash);
+
         const existing = history.findIndex((h) => h.key === key);
         const entry = { key, hash, node };
         if (existing >= 0) {
@@ -635,11 +651,19 @@
       function nodeForHash(hashStr) {
         if (isConsistent()) {
           const ring = currentTopology.ring ?? [];
+          if (!ring.length) return null;
+
+          // The server iterates a std::map, so ring points arrive sorted and the
+          // clockwise walk is a lower_bound.
           const target = BigInt(hashStr);
-          for (const entry of ring) {
-            if (BigInt(entry.hash) >= target) return entry.node;
+          let lo = 0;
+          let hi = ringHashes.length;
+          while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (ringHashes[mid] >= target) hi = mid;
+            else lo = mid + 1;
           }
-          return ring.length ? ring[0].node : null; // wrap around, like HashRing::find_node
+          return lo < ring.length ? ring[lo].node : ring[0].node; // wrap, like HashRing::find_node
         }
         const buckets = currentTopology.buckets ?? [];
         const i = bucketForHash(hashStr);
@@ -774,7 +798,7 @@
 
       function assignmentSnapshot() {
         const m = new Map();
-        history.forEach((h) => m.set(h.key, nodeForHash(h.hash)));
+        sampledHashes.forEach((hash, key) => m.set(key, nodeForHash(hash)));
         return m;
       }
 
@@ -796,7 +820,7 @@
           return;
         }
         const pct = Math.round((moved / total) * 100);
-        el.innerHTML = `Topology changed under <strong>${esc(currentRouter)}</strong>: <strong>${moved} of ${total}</strong> tracked keys moved to a different node (<strong>${pct}%</strong>).`;
+        el.innerHTML = `Topology changed under <strong>${esc(currentRouter)}</strong>: <strong>${pct}%</strong> of the sampled keyspace moved to a different node (${moved} of ${total} keys).`;
       }
 
       // Wraps any change to the node set so the remap cost is always reported.
@@ -903,6 +927,7 @@
         const state = await (await fetch("/api/router")).json();
         currentRouter = state.name;
         currentTopology = state.topology ?? {};
+        ringHashes = (currentTopology.ring ?? []).map((p) => BigInt(p.hash));
 
         const select = document.getElementById("router-select");
         if (select.options.length !== state.available.length) {

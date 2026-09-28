@@ -26,6 +26,8 @@ void HashRing::remove_node(const std::string& node) {
     std::erase_if(ring_, [&node](const auto& entry) { return entry.second == node; });
 }
 
+void HashRing::clear() { ring_.clear(); }
+
 [[nodiscard]] std::optional<std::string> HashRing::find_node(const std::string& key) const {
     if (ring_.empty()) return std::nullopt;
     if (auto it = ring_.lower_bound(hash(key)); it != ring_.end()) return it->second;

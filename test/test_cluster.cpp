@@ -42,15 +42,15 @@ std::vector<NodeId> sorted_ids(const CacheCluster& cluster) {
 }
 
 std::size_t used(const CacheCluster& cluster, const NodeId& id) {
-    for (const auto& [n, u] : cluster.node_status()) {
-        if (n.id == id) return u;
+    for (const auto& node : cluster.list_nodes()) {
+        if (node.id == id) return node.size;
     }
     return 0;
 }
 
 std::size_t total_used(const CacheCluster& cluster) {
     std::size_t sum = 0;
-    for (const auto& [n, u] : cluster.node_status()) sum += u;
+    for (const auto& node : cluster.list_nodes()) sum += node.size;
     return sum;
 }
 
@@ -176,16 +176,31 @@ TEST(CacheCluster, ReadingAKeyProtectsItFromTheNextEviction) {
     EXPECT_FALSE(cluster.get("b").has_value());
 }
 
-TEST(CacheCluster, NodeStatusReportsCapacityAlongsideUsage) {
+TEST(CacheCluster, ListNodesReportsCapacityAlongsideUsage) {
     auto cluster = make_cluster();
     cluster.add_node(node("only", 50));
     cluster.put("a", "1");
 
-    const auto status = cluster.node_status();
-    ASSERT_EQ(status.size(), 1u);
-    EXPECT_EQ(status.front().node.id, "only");
-    EXPECT_EQ(status.front().node.capacity, 50u);
-    EXPECT_EQ(status.front().used, 1u);
+    const auto listed = cluster.list_nodes();
+    ASSERT_EQ(listed.size(), 1u);
+    EXPECT_EQ(listed.front().id, "only");
+    EXPECT_EQ(listed.front().capacity, 50u);
+    EXPECT_EQ(listed.front().size, 1u);
+}
+
+// size is read back from the cache on every call, so a stored Node can never go
+// stale, and whatever a caller puts in the field on the way in is discarded.
+TEST(CacheCluster, ListedSizeTracksTheCacheAndIgnoresCallerInput) {
+    auto cluster = make_cluster();
+    cluster.add_node(Node{.id = "only", .capacity = 50, .policy_name = "lru", .size = 999});
+    EXPECT_EQ(cluster.list_nodes().front().size, 0u);
+
+    cluster.put("a", "1");
+    cluster.put("b", "2");
+    EXPECT_EQ(cluster.list_nodes().front().size, 2u);
+
+    cluster.clear_data();
+    EXPECT_EQ(cluster.list_nodes().front().size, 0u);
 }
 
 // --- events -----------------------------------------------------------------
@@ -374,7 +389,6 @@ TEST(CacheCluster, ResetRemovesEveryNode) {
     cluster.clear_nodes();
 
     EXPECT_TRUE(cluster.list_nodes().empty());
-    EXPECT_TRUE(cluster.node_status().empty());
     EXPECT_TRUE(cluster.router().nodes().empty());
 }
 

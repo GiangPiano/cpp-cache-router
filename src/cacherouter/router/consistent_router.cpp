@@ -16,6 +16,7 @@ void ConsistentRouter::add_node(const NodeId& node, int virtual_nodes) {
     ring_.add_node(node, virtual_nodes);
 }
 void ConsistentRouter::remove_node(const NodeId& node) { ring_.remove_node(node); }
+void ConsistentRouter::clear() { ring_.clear(); }
 
 [[nodiscard]] NodeId ConsistentRouter::route(const std::string& key) const {
     if (auto node = ring_.find_node(key)) return *node;

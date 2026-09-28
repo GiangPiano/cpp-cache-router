@@ -10,6 +10,7 @@
 #include <utility>
 
 #include "cacherouter/events.hpp"
+#include "cacherouter/node.hpp"
 #include "cacherouter/policy/eviction_policy.hpp"
 
 namespace cacherouter {
@@ -17,9 +18,11 @@ namespace cacherouter {
 template <typename K, typename V>
 class Cache {
 public:
-    Cache(size_t capacity, std::unique_ptr<EvictionPolicy> policy)
-        : capacity_{capacity}
-        , policy_{std::move(policy)} {};
+    Cache(NodeSpec spec, std::unique_ptr<EvictionPolicy> policy)
+        : spec_{std::move(spec)}
+        , policy_{std::move(policy)} {
+        spec_.size = 0;  // whatever a caller passed in is not a live count
+    };
 
     void set_event_handler(std::function<void(CacheEvent)> handler) {
         on_event_ = std::move(handler);
@@ -51,17 +54,20 @@ public:
 
         data_[skey] = std::move(value);
 
-        if (data_.size() > capacity_) {
+        if (data_.size() > spec_.capacity) {
             if (auto victim = policy_->victim()) {
                 data_.erase(*victim);
                 policy_->on_remove(*victim);
                 emit(CacheEventType::Evict, *victim);
             }
         }
+
+        spec_.size = data_.size();
     };
 
+    // The node's spec, with size kept current against data_.
+    [[nodiscard]] const NodeSpec& info() const { return spec_; };
     [[nodiscard]] size_t size() const { return data_.size(); };
-    [[nodiscard]] std::string policy() const { return policy_->name(); };
 
 private:
     static std::string to_string(const K& key) {
@@ -71,10 +77,10 @@ private:
     }
 
     void emit(CacheEventType type, const std::string& key) {
-        if (on_event_) on_event_({.type = type, .key = key});
+        if (on_event_) on_event_({.type = type, .key = key, .node_id = spec_.id});
     };
 
-    size_t capacity_;
+    NodeSpec spec_;
     std::unique_ptr<EvictionPolicy> policy_;
     std::unordered_map<std::string, V> data_;
     std::function<void(CacheEvent)> on_event_;

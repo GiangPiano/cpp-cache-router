@@ -7,8 +7,8 @@
 #include <tuple>
 #include <vector>
 
-#include "cacherouter/utils/hash.hpp"
 #include "cacherouter/node.hpp"
+#include "cacherouter/utils/hash.hpp"
 
 namespace cacherouter::router {
 
@@ -26,6 +26,8 @@ void SimpleRouter::remove_node(const NodeId& node) {
         nodes_.pop_back();
     }
 }
+
+void SimpleRouter::clear() { nodes_.clear(); }
 
 [[nodiscard]] NodeId SimpleRouter::route(const std::string& key) const {
     // Guarded rather than left to `% 0`: resetting the cluster makes an empty
