@@ -55,9 +55,33 @@ ring.
 
 ## Test
 
+Run the test binary directly:
+
 ```sh
-cd build/test && ctest
+./build/test/cacherouter_tests
 ```
+
+It is self-contained and reports each failing assertion with its file and line.
+Useful flags while working:
+
+```sh
+./build/test/cacherouter_tests --gtest_filter='HashRing.*'   # one suite
+./build/test/cacherouter_tests --gtest_brief=1               # failures only
+./build/test/cacherouter_tests --gtest_repeat=100            # hunt flakiness
+./build/test/cacherouter_tests --gtest_output=xml:results.xml
+```
+
+CTest can also drive the same tests. `gtest_discover_tests` registers every test
+as its own entry, so each one runs in a separate process and a crash costs only
+that test rather than the whole run:
+
+```sh
+ctest --test-dir build --output-on-failure
+ctest --test-dir build -j8          # in parallel
+ctest --test-dir build -R HashRing  # by name
+```
+
+Pass `--output-on-failure`, or CTest reports only which test failed and not why.
 
 Covers the eviction policy, the hash ring, both routers, the cluster, and the
 event log.

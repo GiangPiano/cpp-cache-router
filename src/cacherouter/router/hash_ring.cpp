@@ -1,6 +1,5 @@
 #include "cacherouter/router/hash_ring.hpp"
 
-#include <cstdint>
 #include <map>
 #include <optional>
 #include <set>
