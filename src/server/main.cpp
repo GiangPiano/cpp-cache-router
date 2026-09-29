@@ -52,13 +52,13 @@ int main(int argc, char** argv) {
         std::cerr << "Error: " << e.what() << '\n';
         return 1;
     }
+    cacherouter::logging::EventLog logger{std::clog, config.debug_level};
 
     auto cluster = cacherouter::CacheCluster(cacherouter::router::make_router("consistent"));
 
     // Logs go to stderr, leaving stdout for whatever the process itself prints.
     // Declared before the server so it outlives the handler borrowing it.
-    cacherouter::logging::EventLog event_log{std::clog, config.debug_level};
-    cluster.set_event_handler([&event_log](const cacherouter::Event& e) { event_log(e); });
+    cluster.set_event_handler([&logger](const cacherouter::Event& e) { logger(e); });
     cluster.clear_nodes();
     cluster.reset_to_default();
 
