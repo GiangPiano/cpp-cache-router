@@ -1,7 +1,7 @@
 add_library(cacherouter_core
   cluster.cpp
   policy/lru_policy.cpp
-  # policy/lfu_policy.cpp
+  policy/lfu_policy.cpp
   router/simple_router.cpp
   router/consistent_router.cpp
   router/hash_ring.cpp

@@ -92,8 +92,7 @@ TEST(PolicyFactory, BuildsAnLruPolicy) {
 }
 
 TEST(PolicyFactory, RejectsAnUnknownPolicyName) {
-    // "lfu" is declared but not implemented, so it must not resolve.
-    EXPECT_THROW(cacherouter::make_policy("lfu"), std::invalid_argument);
+    EXPECT_THROW(cacherouter::make_policy("mru"), std::invalid_argument);
     EXPECT_THROW(cacherouter::make_policy(""), std::invalid_argument);
 }
 

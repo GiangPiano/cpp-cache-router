@@ -19,8 +19,7 @@ public:
     [[nodiscard]] std::string name() const override;
 
 private:
-    void bump(const std::string& key);
-
+    // Lowest non-empty frequency bucket; 0 when nothing is tracked.
     int min_freq_ = 0;
     std::unordered_map<int, std::list<std::string>> buckets_;
     std::unordered_map<std::string, int> freq_;
