@@ -17,6 +17,8 @@
 #include "cacherouter/router/router_factory.hpp"
 #include "nlohmann/json_fwd.hpp"
 
+using std::mutex;
+
 struct Config {
     cacherouter::logging::Level debug_level = cacherouter::logging::Level::Off;
     int port = 8080;
@@ -54,6 +56,7 @@ int main(int argc, char** argv) {
     }
     cacherouter::logging::EventLog logger{std::clog, config.debug_level};
 
+
     auto cluster = cacherouter::CacheCluster(cacherouter::router::make_router("consistent"));
 
     // Logs go to stderr, leaving stdout for whatever the process itself prints.
@@ -63,8 +66,12 @@ int main(int argc, char** argv) {
     cluster.reset_to_default();
 
     httplib::Server server;
-    register_cluster(server, cluster);
-    register_router(server, cluster);
+
+    server.new_task_queue = [] { return new httplib::ThreadPool(64); };
+
+    mutex mu;
+    register_cluster(server, cluster, mu);
+    register_router(server, cluster, mu);
 
     server.set_exception_handler(
         [](const httplib::Request&, httplib::Response& res, const std::exception_ptr& ep) {
