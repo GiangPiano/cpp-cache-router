@@ -148,7 +148,7 @@ so consumers get `cacherouter::hash` without inheriting the vendored headers.
 ## Routers
 
 `simple` picks a node with `hash(key) % node_count`. It is easy to reason about
-and rehomes most of the keyspace whenever the node count changes.
+and remaps most of the keyspace whenever the node count changes.
 
 `consistent` places each node at many points on a 64-bit ring and walks clockwise
 from the key's hash. Adding a node to an N-node cluster moves roughly `1/(N+1)`
@@ -157,8 +157,4 @@ after every topology change.
 
 ## Limitations
 
-- `CacheCluster` is not thread-safe, and cpp-httplib serves requests on a thread
-  pool. Concurrent writes from more than one client are a data race.
-- Only the `LruPolicy` is implemented. `LfuPolicy` is declared but not built.
-- The hash is seeded per process, so key placement differs between runs.
 - State is in memory only and is lost on restart.
