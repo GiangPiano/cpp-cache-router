@@ -53,6 +53,19 @@ The cluster starts with ten nodes (`node-A` through `node-J`), each with a
 capacity of 50 entries, an LRU eviction policy, and 100 virtual nodes on the
 ring.
 
+## Demonstration (Default Cache Configuration)
+
+1. Start with consistent routing. Start simulating traffic, wait around 30 seconds for the cache to be saturated (Hit rate > 90\%)
+2. Add a new node, see how many keys is remapped and how much the hit rate goes down.
+3. Stop the simulation, reset to default, switch the routing algorithm to simple routing.
+4. Repeat step 1 and 2 and see the differences.
+
+Expected behaviour:
+
+- The hit rate reach >90\% after 30 seconds
+- Consistent routing: only 10\% of the key space get remapped, the hit rate only slightly drop on topology change.
+- Simple routing: arount 90\% of the key space get remapped, the hit rate only significantly drop on topology change.
+
 ## Test
 
 Run the test binary directly:
