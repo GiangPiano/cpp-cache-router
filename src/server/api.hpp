@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <exception>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <tuple>
@@ -211,32 +212,41 @@ inline void handle_reset(const Request& req, Response& res, cacherouter::CacheCl
 }
 
 
-inline void register_cluster(Server& server, cacherouter::CacheCluster& cluster) {
-    server.Get("/api/nodes", [&cluster](const Request& req, Response& res) {
+inline void register_cluster(Server& server, cacherouter::CacheCluster& cluster, std::mutex& mu) {
+    server.Get("/api/nodes", [&cluster, &mu](const Request& req, Response& res) {
+        std::lock_guard lock(mu);
         handle_list_nodes(req, res, cluster);
     });
-    server.Post("/api/nodes", [&cluster](const Request& req, Response& res) {
+    server.Post("/api/nodes", [&cluster, &mu](const Request& req, Response& res) {
+        std::lock_guard lock(mu);
         handle_add_node(req, res, cluster);
     });
-    server.Delete("/api/nodes/:id", [&cluster](const Request& req, Response& res) {
+    server.Delete("/api/nodes/:id", [&cluster, &mu](const Request& req, Response& res) {
+        std::lock_guard lock(mu);
         handle_remove_node(req, res, cluster);
     });
-    server.Get("/api/cache/:key", [&cluster](const Request& req, Response& res) {
+    server.Get("/api/cache/:key", [&cluster, &mu](const Request& req, Response& res) {
+        std::lock_guard lock(mu);
         handle_get_key(req, res, cluster);
     });
-    server.Put("/api/cache/:key", [&cluster](const Request& req, Response& res) {
+    server.Put("/api/cache/:key", [&cluster, &mu](const Request& req, Response& res) {
+        std::lock_guard lock(mu);
         handle_put_key(req, res, cluster);
     });
 }
 
 
-inline void register_router(Server& server, cacherouter::CacheCluster& cluster) {
-    server.Get("/api/router", [&cluster](const Request& req, Response& res) {
+inline void register_router(Server& server, cacherouter::CacheCluster& cluster, std::mutex& mu) {
+    server.Get("/api/router", [&cluster, &mu](const Request& req, Response& res) {
+        std::lock_guard lock(mu);
         handle_get_router(req, res, cluster);
     });
-    server.Post("/api/router", [&cluster](const Request& req, Response& res) {
+    server.Post("/api/router", [&cluster, &mu](const Request& req, Response& res) {
+        std::lock_guard lock(mu);
         handle_set_router(req, res, cluster);
     });
-    server.Post("/api/reset",
-                [&cluster](const Request& req, Response& res) { handle_reset(req, res, cluster); });
+    server.Post("/api/reset", [&cluster, &mu](const Request& req, Response& res) {
+        std::lock_guard lock(mu);
+        handle_reset(req, res, cluster);
+    });
 }
