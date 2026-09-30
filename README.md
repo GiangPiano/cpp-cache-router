@@ -7,6 +7,8 @@ browser UI that visualises where keys land. Switch between a modulo router and a
 consistent-hashing ring and watch how many keys get remapped when the node set
 changes.
 
+[Video Walkthrough](https://youtu.be/e7afhZCe9Ko)
+
 ## Requirements
 
 - CMake 4.0 or newer
