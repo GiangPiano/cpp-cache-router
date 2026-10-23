@@ -21,7 +21,7 @@ using std::mutex;
 
 struct Config {
     cacherouter::logging::Level debug_level = cacherouter::logging::Level::Off;
-    int port = 8080;
+    int port                                = 8080;
 };
 
 [[nodiscard]] Config parse_argument(const std::vector<std::string>& args) {
