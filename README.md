@@ -25,6 +25,23 @@ cmake -S . -B build
 cmake --build build
 ```
 
+This defaults to an unoptimized build (no `CMAKE_BUILD_TYPE`, no `-O` flags).
+For benchmarking or any other performance-sensitive run, configure with
+`-DCMAKE_BUILD_TYPE=Release` instead. The generator here is Unix Makefiles, a
+single-config generator, so the build type is picked at configure time via
+`-DCMAKE_BUILD_TYPE`, not at build time via `cmake --build --config` (that flag
+only does something for multi-config generators like Xcode or Visual Studio,
+and is silently ignored here):
+
+```sh
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+```
+
+`CMAKE_BUILD_TYPE` is cached in `build/CMakeCache.txt`, so an existing build
+directory configured without it stays unoptimized until you pass the flag
+again.
+
 ## Run
 
 The web root is resolved relative to the working directory, so start the server
