@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -28,8 +29,11 @@ public:
         on_event_ = std::move(handler);
     };
 
+    // get() still mutates: a hit updates the eviction policy's recency/frequency
+    // order, so concurrent calls for the same node need the same lock as put().
     std::optional<V> get(const K& key) {
         std::string skey = to_string(key);
+        std::scoped_lock lock(mu_);
 
         if (auto it = data_.find(skey); it != data_.end()) {
             policy_->on_access(skey);
@@ -43,6 +47,7 @@ public:
 
     void put(const K& key, V value) {
         std::string skey = to_string(key);
+        std::scoped_lock lock(mu_);
 
         if (auto it = data_.find(skey); it == data_.end()) {
             policy_->on_insert(skey);
@@ -65,9 +70,17 @@ public:
         spec_.size = data_.size();
     };
 
-    // The node's spec, with size kept current against data_.
-    [[nodiscard]] const NodeSpec& info() const { return spec_; };
-    [[nodiscard]] size_t size() const { return data_.size(); };
+    // The node's spec, with size kept current against data_. Returned by value:
+    // a reference out of a locked critical section would let the caller read
+    // spec_ fields (e.g. size, updated under lock by put()) without any lock.
+    [[nodiscard]] NodeSpec info() const {
+        std::scoped_lock lock(mu_);
+        return spec_;
+    };
+    [[nodiscard]] size_t size() const {
+        std::scoped_lock lock(mu_);
+        return data_.size();
+    };
 
 private:
     static std::string to_string(const K& key) {
@@ -84,6 +97,7 @@ private:
     std::unique_ptr<EvictionPolicy> policy_;
     std::unordered_map<std::string, V> data_;
     std::function<void(CacheEvent)> on_event_;
+    mutable std::mutex mu_;
 };
 
 }  // namespace cacherouter

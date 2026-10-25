@@ -1,5 +1,6 @@
 #include <httplib.h>
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <exception>
@@ -8,6 +9,7 @@
 #include <print>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "api.hpp"
@@ -16,8 +18,6 @@
 #include "cacherouter/logging/event_log.hpp"
 #include "cacherouter/router/router_factory.hpp"
 #include "nlohmann/json_fwd.hpp"
-
-using std::mutex;
 
 struct Config {
     cacherouter::logging::Level debug_level = cacherouter::logging::Level::Off;
@@ -67,11 +67,22 @@ int main(int argc, char** argv) {
 
     httplib::Server server;
 
-    server.new_task_queue = [] { return new httplib::ThreadPool(64); };
+    // cpp-httplib leaves TCP_NODELAY off by default, so Nagle's algorithm holds
+    // small writes (e.g. headers vs body) until the peer's ACK. On Linux loopback
+    // that ACK is commonly delayed ~40ms, capping throughput at ~25 req/s per
+    // connection. Mac loopback doesn't hit this as reliably, which is why the
+    // same binary looks fine there and crawls on Ubuntu.
+    server.set_tcp_nodelay(true);
 
-    mutex mu;
-    register_cluster(server, cluster, mu);
-    register_router(server, cluster, mu);
+    // A pool much larger than core count just adds scheduling overhead once
+    // CacheCluster can actually run requests in parallel (it used to serialize
+    // everything behind one lock, so a big pool was free insurance; it isn't
+    // anymore).
+    const auto pool_size = std::max(std::thread::hardware_concurrency(), 4u);
+    server.new_task_queue = [pool_size] { return new httplib::ThreadPool(pool_size); };
+
+    register_cluster(server, cluster);
+    register_router(server, cluster);
 
     server.set_exception_handler(
         [](const httplib::Request&, httplib::Response& res, const std::exception_ptr& ep) {

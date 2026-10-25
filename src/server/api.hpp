@@ -4,7 +4,6 @@
 
 #include <cstddef>
 #include <exception>
-#include <mutex>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <tuple>
@@ -122,9 +121,7 @@ inline void handle_put_key(const Request& req, Response& res, cacherouter::Cache
 // Each router is drawn differently, so the payload is shaped per router rather
 // than forced into a shared schema: a ring of hash points for ConsistentRouter,
 // an ordered bucket list (index == hash % N) for SimpleRouter.
-inline json router_topology(const cacherouter::CacheCluster& cluster) {
-    const auto& router = cluster.router();
-
+inline json router_topology(const cacherouter::router::Router& router) {
     if (const auto* consistent =
             dynamic_cast<const cacherouter::router::ConsistentRouter*>(&router)) {
         auto ring = json::array();
@@ -138,10 +135,14 @@ inline json router_topology(const cacherouter::CacheCluster& cluster) {
 }
 
 
+// Built inside a single with_router call so a concurrent router swap can't
+// land between reading the name and reading the topology.
 inline json router_state(const cacherouter::CacheCluster& cluster) {
-    return json{{"name", cluster.router().name()},
-                {"available", cacherouter::router::available_routers()},
-                {"topology", router_topology(cluster)}};
+    return cluster.with_router([](const cacherouter::router::Router& router) {
+        return json{{"name", router.name()},
+                    {"available", cacherouter::router::available_routers()},
+                    {"topology", router_topology(router)}};
+    });
 }
 
 
@@ -160,7 +161,7 @@ inline void handle_set_router(const Request& req, Response& res,
         const auto body = json::parse(req.body);
         const auto name = body.at("name").get<std::string>();
 
-        if (name == cluster.router().name()) {
+        if (name == cluster.with_router([](const auto& r) { return r.name(); })) {
             res.status = 200;
             res.set_content(router_state(cluster).dump(), "application/json");
             return;
@@ -212,41 +213,36 @@ inline void handle_reset(const Request& req, Response& res, cacherouter::CacheCl
 }
 
 
-inline void register_cluster(Server& server, cacherouter::CacheCluster& cluster, std::mutex& mu) {
-    server.Get("/api/nodes", [&cluster, &mu](const Request& req, Response& res) {
-        std::lock_guard lock(mu);
+// CacheCluster is internally synchronized (a shared_mutex over node/router
+// topology, plus a per-node mutex inside Cache for get/put), so handlers can
+// run concurrently on httplib's thread pool without an external lock here.
+inline void register_cluster(Server& server, cacherouter::CacheCluster& cluster) {
+    server.Get("/api/nodes", [&cluster](const Request& req, Response& res) {
         handle_list_nodes(req, res, cluster);
     });
-    server.Post("/api/nodes", [&cluster, &mu](const Request& req, Response& res) {
-        std::lock_guard lock(mu);
+    server.Post("/api/nodes", [&cluster](const Request& req, Response& res) {
         handle_add_node(req, res, cluster);
     });
-    server.Delete("/api/nodes/:id", [&cluster, &mu](const Request& req, Response& res) {
-        std::lock_guard lock(mu);
+    server.Delete("/api/nodes/:id", [&cluster](const Request& req, Response& res) {
         handle_remove_node(req, res, cluster);
     });
-    server.Get("/api/cache/:key", [&cluster, &mu](const Request& req, Response& res) {
-        std::lock_guard lock(mu);
+    server.Get("/api/cache/:key", [&cluster](const Request& req, Response& res) {
         handle_get_key(req, res, cluster);
     });
-    server.Put("/api/cache/:key", [&cluster, &mu](const Request& req, Response& res) {
-        std::lock_guard lock(mu);
+    server.Put("/api/cache/:key", [&cluster](const Request& req, Response& res) {
         handle_put_key(req, res, cluster);
     });
 }
 
 
-inline void register_router(Server& server, cacherouter::CacheCluster& cluster, std::mutex& mu) {
-    server.Get("/api/router", [&cluster, &mu](const Request& req, Response& res) {
-        std::lock_guard lock(mu);
+inline void register_router(Server& server, cacherouter::CacheCluster& cluster) {
+    server.Get("/api/router", [&cluster](const Request& req, Response& res) {
         handle_get_router(req, res, cluster);
     });
-    server.Post("/api/router", [&cluster, &mu](const Request& req, Response& res) {
-        std::lock_guard lock(mu);
+    server.Post("/api/router", [&cluster](const Request& req, Response& res) {
         handle_set_router(req, res, cluster);
     });
-    server.Post("/api/reset", [&cluster, &mu](const Request& req, Response& res) {
-        std::lock_guard lock(mu);
+    server.Post("/api/reset", [&cluster](const Request& req, Response& res) {
         handle_reset(req, res, cluster);
     });
 }
