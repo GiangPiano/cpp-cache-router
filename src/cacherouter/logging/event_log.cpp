@@ -88,35 +88,26 @@ EventLog::EventLog(std::ostream& out, Level threshold) : out_(&out), threshold_(
 
 void EventLog::operator()(const Event& event) {
     const auto level = level_of(event);
-    const std::scoped_lock lock(mutex_);
+    const auto threshold = threshold_.load(std::memory_order_relaxed);
 
-    if (threshold_ == Level::Off || level < threshold_) {
-        suppressed_++;
+    if (threshold == Level::Off || level < threshold) {
+        suppressed_.fetch_add(1, std::memory_order_relaxed);
         return;
     }
 
+    const std::scoped_lock lock(mutex_);
     *out_ << format(event) << '\n' << std::flush;
-    written_++;
+    written_.fetch_add(1, std::memory_order_relaxed);
 }
 
 void EventLog::set_threshold(Level threshold) {
-    const std::scoped_lock lock(mutex_);
-    threshold_ = threshold;
+    threshold_.store(threshold, std::memory_order_relaxed);
 }
 
-Level EventLog::threshold() const {
-    const std::scoped_lock lock(mutex_);
-    return threshold_;
-}
+Level EventLog::threshold() const { return threshold_.load(std::memory_order_relaxed); }
 
-std::size_t EventLog::written() const {
-    const std::scoped_lock lock(mutex_);
-    return written_;
-}
+std::size_t EventLog::written() const { return written_.load(std::memory_order_relaxed); }
 
-std::size_t EventLog::suppressed() const {
-    const std::scoped_lock lock(mutex_);
-    return suppressed_;
-}
+std::size_t EventLog::suppressed() const { return suppressed_.load(std::memory_order_relaxed); }
 
 }  // namespace cacherouter::logging

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <mutex>
@@ -28,9 +29,13 @@ enum class Level : std::uint8_t { Trace, Debug, Info, Off };
 // CacheCluster::set_event_handler takes a std::function<void>
 // `cluster.set_event_handler [&log](Event e) { log(e); })`.
 //
-// The lock is needed because httplib serves
-// requests on a thread pool, so the cluster emits from several threads at once
-// and unsynchronised writes would interleave mid-line.
+// httplib serves requests on a thread pool, so the cluster emits from several
+// threads at once. The mutex only guards the actual stream write — unsynchronised
+// writes would interleave mid-line — not the threshold check: every GET/PUT
+// reaches this call at least once, so at the default (and typical production)
+// threshold of Off, the whole request path would otherwise serialize through
+// one lock just to discover there's nothing to log. threshold_/written_/
+// suppressed_ are atomics so that path never takes the mutex at all.
 class EventLog {
 public:
     explicit EventLog(std::ostream& out, Level threshold = Level::Info);
@@ -48,10 +53,10 @@ public:
 
 private:
     std::ostream* out_;
-    Level threshold_;
-    mutable std::mutex mutex_;
-    std::size_t written_ = 0;
-    std::size_t suppressed_ = 0;
+    std::atomic<Level> threshold_;
+    mutable std::mutex mutex_;  // guards out_ only
+    std::atomic<std::size_t> written_{0};
+    std::atomic<std::size_t> suppressed_{0};
 };
 
 }  // namespace cacherouter::logging
